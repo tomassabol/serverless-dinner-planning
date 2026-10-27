@@ -3,6 +3,9 @@ import { PROJECT_NAME, type Stage } from '@dinner/shared';
 
 export const REGION = 'eu-west-1';
 
+/** Small, cheap model used to classify offers at ingest time. */
+export const TAG_MODEL_ID = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
+
 export interface StageConfig {
   stage: Stage;
   /** Prefix for physical resource names, e.g. `dinner-prod`. */

@@ -30,10 +30,16 @@ Region `eu-west-1`, AWS profile `tomassabol`, CDK (TypeScript), Strands Agents (
 | Kvickly | `c1edq` |
 | SPAR | `88ddE` |
 | MENY | `267e1m` |
-| Løvbjerg | `65caN` |
-| ABC Lavpris | `70d42L` |
+| Løvbjerg (regional, not ingested by default) | `65caN` |
+| ABC Lavpris (regional, one catalog per store, not ingested by default) | `70d42L` |
 
-Useful endpoints: `GET /v2/offers?dealer_ids=<id>&limit=100&offset=N` (paginate), `GET /v2/dealers`, `GET /v2/catalogs?dealer_ids=…`.
+Useful endpoints: `GET /v2/catalogs?dealer_ids=<id>`, then `GET /v2/offers?catalog_ids=<id>&limit=100&offset=N`, plus `GET /v2/dealers`.
+
+Learned while building Phase 1:
+- Tjek rejects `offset + limit` above 1000 (`PAGINATION_MAX_REACHED`), so offers are fetched per catalog. That also lets us skip non-food catalogs (Bilka's toy and electronics flyers). Dealers without listed catalogs (Løvbjerg) fall back to dealer paging.
+- The 11 default chains give about 2,700 offers. The first full tagging run cost about $0.96 (238k input and 144k output tokens on Haiku 4.5) and took 6 minutes. Later runs only tag new offers and take about 15 seconds.
+- Next week's flyers appear gradually from Tuesday to Saturday, so the next-week snapshot fills up during the week.
+- Lidl's "Fast lav pris" catalog lists everyday prices that run until the end of the year. They're not deals; the planner should weight them lower.
 
 **⚠️ Legal / ToS risk:** Tjek's terms say the API is for contracted customers only. Access through third-party apps needs written approval, and using the data to *train or develop* AI/ML models is prohibited. Feeding offers into prompts is not training, but this project still sits outside their terms.
 **Recommendation:** email `services@tjek.com` to ask for personal, non-commercial use. Keep the volume tiny (≈15 dealers × a few pages, once a day), cache everything, never redistribute, and hide the source behind an `OfferSource` interface so it can be swapped out.
@@ -60,7 +66,7 @@ Useful endpoints: `GET /v2/offers?dealer_ids=<id>&limit=100&offset=N` (paginate)
    The LLM judge then scores only the subjective parts (variety, appeal, effort, seasonality) and returns structured feedback.
 8. **The judge sees only the plan and the context**, never the planner's reasoning, so it doesn't just rubber-stamp it. Use Zod schemas and structured output for both `MealPlan` and `JudgeVerdict`.
 9. **Nutrition comes from a database, not from the LLM.** LLMs make up macros. Ingest DTU's **Frida** Danish food composition database (open data) and expose a `nutrition_lookup(ingredient, grams)` tool. The planner gives ingredients in grams and the code adds them up.
-10. **Models in eu-west-1 use the `eu.` cross-region inference profiles.** Check availability with `aws bedrock list-inference-profiles --region eu-west-1 --profile tomassabol`. Sonnet for the planner, which makes many tool calls. Sonnet or Opus for the judge. Haiku for ingest tagging. Use prompt caching on the system prompt and the offers context.
+10. **Models in eu-west-1 use the `eu.` cross-region inference profiles.** Check availability with `aws bedrock list-inference-profiles --region eu-west-1 --profile tomassabol`. Sonnet for the planner, which makes many tool calls. Sonnet or Opus for the judge. Haiku for ingest tagging. **As of 2026-10-27 this account can call Haiku 4.5 and Sonnet 4.6, but not the Claude 5 family (Haiku/Sonnet/Opus 5.x return AccessDenied).** Request access before Phase 3, or use Sonnet 4.6. Use prompt caching on the system prompt and the offers context.
 11. **Side effects stay outside the agent.** The agent returns a validated plan as JSON. Step Functions then saves it, generates images and sends the email. Retries become deterministic and the agent can't send twice.
 
 ### Images

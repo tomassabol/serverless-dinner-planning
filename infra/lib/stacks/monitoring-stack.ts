@@ -2,6 +2,8 @@ import { Stack, type StackProps } from 'aws-cdk-lib';
 import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as xray from 'aws-cdk-lib/aws-xray';
 import type { Construct } from 'constructs';
 import { PROJECT_NAME } from '@dinner/shared';
@@ -14,6 +16,9 @@ export interface MonitoringStackProps extends StackProps {
 }
 
 export class MonitoringStack extends Stack {
+  /** Operational alarms (failed or missed jobs) are sent here. */
+  readonly alertTopic: sns.Topic;
+
   constructor(scope: Construct, id: string, props: MonitoringStackProps) {
     super(scope, id, props);
     const { config, alertEmail } = props;
@@ -21,6 +26,12 @@ export class MonitoringStack extends Stack {
     if (!alertEmail) {
       throw new Error('Missing alertEmail context. Pass -c alertEmail=you@example.com or set it in cdk.context.json.');
     }
+
+    this.alertTopic = new sns.Topic(this, 'AlertTopic', {
+      topicName: `${config.prefix}-alerts`,
+      enforceSSL: true,
+    });
+    this.alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
 
     const subscribers = [{ subscriptionType: 'EMAIL', address: alertEmail }];
     const notification = (threshold: number, notificationType: 'ACTUAL' | 'FORECASTED') => ({

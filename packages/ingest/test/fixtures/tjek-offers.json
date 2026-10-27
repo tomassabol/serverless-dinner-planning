@@ -1,0 +1,298 @@
+[
+  {
+    "id": "SrVuPgpH7X0hYRheMv0cP",
+    "heading": "Rose hel kylling eller Danpo hakket kylling",
+    "description": "1-1,45 kg. Hakket kylling 3-7%. Pr. kg max. 39,-",
+    "pricing": {
+      "price": 39,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "kg",
+        "si": {
+          "symbol": "kg",
+          "factor": 1
+        }
+      },
+      "size": {
+        "from": 1,
+        "to": 1.45
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-6.webp&w=600&x1r=0.02&x2r=0.49&y1r=0.1&y2r=0.53&s=a1e8fd4522f6b33729e022377cecd088"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "Zd1AwZ5Om81AhIYaZODNq",
+    "heading": "Dava skrabeæg",
+    "description": "8 stk. Str. M/L. Pr. stk. 2,75",
+    "pricing": {
+      "price": 22,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "pcs",
+        "si": {
+          "symbol": "pcs",
+          "factor": 1
+        }
+      },
+      "size": {
+        "from": 8,
+        "to": 8
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-37.webp&w=600&x1r=0.04&x2r=0.37&y1r=0.73&y2r=0.96&s=c19a0b869cf007b45a56549294ced2e8"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "q75Yk-0VdfvIxu1h4VkIo",
+    "heading": "Hakket okse/grisekød eller grisekød",
+    "description": "600-1000 kg. 8-12% fedt. Pr. kg max. 65,-",
+    "pricing": {
+      "price": 39,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "g",
+        "si": {
+          "symbol": "kg",
+          "factor": 0.001
+        }
+      },
+      "size": {
+        "from": 600,
+        "to": 1000
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-3.webp&w=600&x1r=0.43&x2r=0.97&y1r=0.71&y2r=0.96&s=47bde34e951452b43a6a58e6ddad9653"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "nFIKA1pZq1GbygPQX0wdV",
+    "heading": "Hamburgerryg eller mørbrad af gris",
+    "description": "1,65-2,2 kg. Pr. kg max. 60,-",
+    "pricing": {
+      "price": 99,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "kg",
+        "si": {
+          "symbol": "kg",
+          "factor": 1
+        }
+      },
+      "size": {
+        "from": 1.65,
+        "to": 2.2
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-6.webp&w=600&x1r=0.02&x2r=0.49&y1r=0.54&y2r=0.96&s=29a951515684b98385353bf23a343165"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "LPsGmDFWl0bpAYxRh7_Y_",
+    "heading": "Oscar andebryst",
+    "description": "300-350g. Pr. kg max. 116,67",
+    "pricing": {
+      "price": 35,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "g",
+        "si": {
+          "symbol": "kg",
+          "factor": 0.001
+        }
+      },
+      "size": {
+        "from": 300,
+        "to": 350
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-3.webp&w=600&x1r=0.02&x2r=0.38&y1r=0.72&y2r=0.96&s=07e4ec1c2bde944a4111a7e4df4d6f14"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "NAnQZaYLXZ9YvKbZBXcPt",
+    "heading": "Coca Cola sodavand",
+    "description": "24x33 cl. ds. Regular eller zero. Gælder kun lukkede forpakninger. Ekskl. embl. Pr. liter 8,71\nMax. 6 rammer til denne pris",
+    "pricing": {
+      "price": 69,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "cl",
+        "si": {
+          "symbol": "l",
+          "factor": 0.01
+        }
+      },
+      "size": {
+        "from": 33,
+        "to": 33
+      },
+      "pieces": {
+        "from": 24,
+        "to": 24,
+        "min": null,
+        "max": 6
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-7.webp&w=600&x1r=0.523&x2r=0.978&y1r=0.165&y2r=0.525&s=0a6a877cf683e2ac96d77eb469bb31c3"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "LJ3nqImuxpxoleK0piY9J",
+    "heading": "Ben & Jerry’s isbæger",
+    "description": "427-465 ml. Flere varianter. Pr. liter max. 91,33",
+    "pricing": {
+      "price": 39,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "ml",
+        "si": {
+          "symbol": "l",
+          "factor": 0.001
+        }
+      },
+      "size": {
+        "from": 427,
+        "to": 465
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-8.webp&w=600&x1r=0.088&x2r=0.495&y1r=0.742&y2r=0.925&s=9eb48e6759d6eeef2755d86fc13c6b53"
+    },
+    "run_from": "2026-09-30T22:00:00+0000",
+    "run_till": "2026-10-31T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  },
+  {
+    "id": "T2qYglu7bkb-xx__gQPyC",
+    "heading": "Libero Comfort eller Up&Go bleer",
+    "description": "20-43 stk. Flere størrelser. Pr. stk. max. 3,25",
+    "pricing": {
+      "price": 65,
+      "pre_price": null,
+      "currency": "DKK"
+    },
+    "quantity": {
+      "unit": {
+        "symbol": "pcs",
+        "si": {
+          "symbol": "pcs",
+          "factor": 1
+        }
+      },
+      "size": {
+        "from": 1,
+        "to": 1
+      },
+      "pieces": {
+        "from": 1,
+        "to": 1,
+        "min": null,
+        "max": null
+      }
+    },
+    "images": {
+      "view": "https://image-transformer-api.tjek.com/?u=s3%3A%2F%2Fsgn-prd-assets%2Fuploads%2FxL4OW4sV%2Fp-replacement-sjCttXe9-7.webp&w=600&x1r=0.006&x2r=0.498&y1r=0.138&y2r=0.533&s=9d5810c15c5e07bf4248d1d4ad2121ae"
+    },
+    "run_from": "2026-10-22T22:00:00+0000",
+    "run_till": "2026-10-29T22:59:59+0000",
+    "publish": "2026-10-23T07:00:34+0000",
+    "dealer_id": "bdf5A",
+    "catalog_id": "xL4OW4sV"
+  }
+]

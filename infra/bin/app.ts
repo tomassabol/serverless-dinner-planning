@@ -3,6 +3,8 @@ import { App, Tags } from 'aws-cdk-lib';
 import { isStage, STAGES } from '@dinner/shared';
 import { getStageConfig, REGION, TAGS } from '../lib/config';
 import { AuthStack } from '../lib/stacks/auth-stack';
+import { DataStack } from '../lib/stacks/data-stack';
+import { IngestStack } from '../lib/stacks/ingest-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
 
 const app = new App();
@@ -21,8 +23,18 @@ for (const [key, value] of Object.entries(TAGS(stage))) {
 
 new AuthStack(app, `${config.prefix}-auth`, { env, config });
 
-new MonitoringStack(app, `${config.prefix}-monitoring`, {
+const monitoring = new MonitoringStack(app, `${config.prefix}-monitoring`, {
   env,
   config,
   alertEmail: app.node.tryGetContext('alertEmail'),
+});
+
+const data = new DataStack(app, `${config.prefix}-data`, { env, config });
+
+new IngestStack(app, `${config.prefix}-ingest`, {
+  env,
+  config,
+  table: data.table,
+  bucket: data.bucket,
+  alertTopic: monitoring.alertTopic,
 });
