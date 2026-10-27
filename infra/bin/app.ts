@@ -2,6 +2,7 @@
 import { App, Tags } from 'aws-cdk-lib';
 import { isStage, STAGES } from '@dinner/shared';
 import { getStageConfig, REGION, TAGS } from '../lib/config';
+import { AgentsStack } from '../lib/stacks/agents-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { DataStack } from '../lib/stacks/data-stack';
 import { GatewayStack } from '../lib/stacks/gateway-stack';
@@ -40,9 +41,11 @@ new IngestStack(app, `${config.prefix}-ingest`, {
   alertTopic: monitoring.alertTopic,
 });
 
-new GatewayStack(app, `${config.prefix}-gateway`, {
+const gateway = new GatewayStack(app, `${config.prefix}-gateway`, {
   env,
   config,
   table: data.table,
   bucket: data.bucket,
 });
+
+new AgentsStack(app, `${config.prefix}-agents`, { env, config, gateway: gateway.gateway });

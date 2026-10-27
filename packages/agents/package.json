@@ -1,0 +1,30 @@
+{
+  "name": "@dinner/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "plan-local": "tsx scripts/plan-local.ts",
+    "package-runtime": "tsx scripts/package-runtime.ts",
+    "invoke": "tsx scripts/invoke-runtime.ts"
+  },
+  "dependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@aws-sdk/credential-providers": "^3.1156.0",
+    "@dinner/shared": "workspace:*",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@smithy/signature-v4": "^5.7.4",
+    "@strands-agents/sdk": "^1.22.0",
+    "bedrock-agentcore": "^0.4.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.1156.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.5"
+  }
+}

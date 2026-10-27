@@ -6,6 +6,12 @@ export const REGION = 'eu-west-1';
 /** Small, cheap model used to classify offers at ingest time. */
 export const TAG_MODEL_ID = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
 
+/**
+ * Planner and judge model. Claude 5.x is not enabled for this account yet (2026-10-27);
+ * switch to e.g. eu.anthropic.claude-sonnet-5-5 once Bedrock access is granted.
+ */
+export const AGENT_MODEL_ID = 'eu.anthropic.claude-sonnet-4-6';
+
 export interface StageConfig {
   stage: Stage;
   /** Prefix for physical resource names, e.g. `dinner-prod`. */

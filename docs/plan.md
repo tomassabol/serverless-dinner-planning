@@ -155,14 +155,20 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| **0. Foundations** | pnpm monorepo, CDK bootstrap in eu-west-1, tags/stage, Cognito pool with 2 users, AWS Budget alarm, CloudWatch Transaction Search (AgentCore Observability prerequisite) | `cdk deploy --all` works and resources are tagged |
-| **1. Offer ingestion** | Tjek adapter, normalization, Haiku tagging, S3 + DDB, daily schedule | a week of normalized food offers for all target chains in S3 |
-| **2. Tools + Gateway** | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
-| **3. Planner + Judge** | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
+| **0. Foundations** ✅ | pnpm monorepo, CDK bootstrap in eu-west-1, tags/stage, Cognito pool with 2 users, AWS Budget alarm, CloudWatch Transaction Search (AgentCore Observability prerequisite) | `cdk deploy --all` works and resources are tagged |
+| **1. Offer ingestion** ✅ | Tjek adapter, normalization, Haiku tagging, S3 + DDB, daily schedule | a week of normalized food offers for all target chains in S3 |
+| **2. Tools + Gateway** ✅ | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
+| **3. Planner + Judge** ✅ | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
 | **4. Weekly workflow** | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
 | **5. Chat agent** | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
 | **6. Web app** | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
 | **7. Hardening** | Observability dashboards and alarms tuned on real runs, cost per run metric, Tjek fallback, prompt caching tuning | about a month of unattended Sundays |
+
+### Phase 3 notes
+- **Runtime packaging:** code-zip deploy on `NODE_22`, entry point `["opentelemetry-instrument", "main.js"]`. `main.js` is an esbuild **CommonJS** bundle, because ADOT only instruments CommonJS. `node_modules` holds only ADOT plus two Fastify plugins that `bedrock-agentcore` loads via `createRequire`. CDK builds it with local asset bundling (`packages/agents/scripts/package-runtime.ts`); no Docker or ECR.
+- **Loop:** the planner (Strands, Gateway read tools only) produces a structured `MealPlanDraft`. Code then computes per-serving nutrition through `nutrition_lookup`, checks every offer id with `get_offer`, and runs `checkPlan`, which covers allergens, dislikes, repetition, thumbs-down dishes, offer validity, nutrition ranges and weekday cooking time. Blocking findings go straight back to the planner. Otherwise a fresh judge agent scores the plan. There are at most 3 rounds, and the best plan without blocking issues wins.
+- **First real run (week 45):** approved in round 2 with score 7. Round 1 scored 4 with 13 findings. It took about 3 minutes on Sonnet 4.6.
+- **Strands MCP tool filters** match strings exactly, and regex filters are anchored at the start of the name. Use full names like `dinner-tools___search_offers`.
 
 ### Open decisions
 1. Tjek ToS: ask for permission, or accept the personal-use risk?

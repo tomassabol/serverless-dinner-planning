@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentAndNextWeek, isoWeekKey, isoWeekRange, overlaps } from './week.js';
+import { currentAndNextWeek, isoWeekDates, isoWeekKey, isoWeekRange, overlaps, resolveWeekKey } from './week.js';
 
 describe('week', () => {
   it('uses Danish local time at the Sunday/Monday boundary', () => {
@@ -26,5 +26,18 @@ describe('week', () => {
     const range = isoWeekRange(new Date('2026-10-28T12:00:00Z'));
     expect(overlaps('2026-10-22T22:00:00+0000', '2026-10-29T22:59:59+0000', range)).toBe(true);
     expect(overlaps('2026-10-15T22:00:00+0000', '2026-10-22T22:59:59+0000', range)).toBe(false);
+  });
+
+  it('lists the dates of an ISO week', () => {
+    expect(isoWeekDates('2026-W45')).toEqual(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08']);
+    expect(isoWeekDates('2026-W53')[6]).toBe('2027-01-03');
+    expect(isoWeekDates('2027-W01')[0]).toBe('2027-01-04');
+  });
+
+  it('resolves relative week names', () => {
+    const now = new Date('2026-11-01T20:00:00Z'); // Sunday evening in Copenhagen
+    expect(resolveWeekKey('current', now)).toBe('2026-W44');
+    expect(resolveWeekKey('next', now)).toBe('2026-W45');
+    expect(() => resolveWeekKey('soon', now)).toThrow('Invalid week');
   });
 });

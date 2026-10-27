@@ -1,8 +1,7 @@
 import { GetObjectCommand, NoSuchKey, type S3Client } from '@aws-sdk/client-s3';
 import { TZDate } from '@date-fns/tz';
-import { addWeeks } from 'date-fns';
 import Fuse from 'fuse.js';
-import { TIME_ZONE, isoWeekRange, type Offer } from '@dinner/shared';
+import { TIME_ZONE, resolveWeekKey, type Offer } from '@dinner/shared';
 import type { z } from 'zod';
 import type { SearchOffersInput } from './definitions.js';
 
@@ -40,9 +39,7 @@ export class OfferCatalog {
   ) {}
 
   resolveWeek(week: string | undefined): string {
-    if (!week || week === 'current') return isoWeekRange(this.now()).key;
-    if (week === 'next') return isoWeekRange(addWeeks(new TZDate(this.now(), TIME_ZONE), 1)).key;
-    return week;
+    return resolveWeekKey(week, this.now());
   }
 
   async search(input: z.infer<typeof SearchOffersInput>) {

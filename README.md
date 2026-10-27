@@ -9,6 +9,7 @@ infra/            CDK app (TypeScript, run via tsx)
 packages/shared/  Shared types, Zod schemas, chain list, week helpers
 packages/ingest/  Daily offer ingest: Tjek → S3 raw + DynamoDB + week snapshots
 packages/tools/   AgentCore Gateway tools (offers, Frida nutrition, preferences, meal history) and the request interceptor
+packages/agents/  Strands agents on AgentCore Runtime: weekly planner + judge loop with code-only plan checks
 scripts/          Operational scripts
 ```
 
@@ -41,6 +42,18 @@ After changing a tool's Zod input, regenerate the Gateway schema (a test fails i
 
 ```bash
 pnpm --filter @dinner/tools gen:schema
+```
+
+Run the weekly planner/judge loop locally against the deployed Gateway and Bedrock:
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/agents plan-local next
+```
+
+Invoke the deployed weekly runtime (AgentCore Runtime, IAM auth):
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/agents invoke next
 ```
 
 Run the deployed ingest by hand (it also runs daily at 05:00 Copenhagen time):
