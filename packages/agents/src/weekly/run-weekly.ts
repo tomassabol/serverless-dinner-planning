@@ -61,10 +61,12 @@ export async function runWeekly(
   const weekKey = resolveWeekKey(request.week ?? 'next', now);
   const dates = isoWeekDates(weekKey);
 
-  const [preferences, { meals: history }] = await Promise.all([
+  const [preferences, { meals }] = await Promise.all([
     callTool<Preferences>(gateway, 'get_preferences'),
     callTool<{ meals: MealRecord[] }>(gateway, 'get_meal_history', { weeks: 8 }),
   ]);
+  // A re-plan must not treat the week's own earlier version as "recent meals".
+  const history = meals.filter((m) => m.date < dates[0]!);
   const ctx: WeekContext = { weekKey, dates, preferences, history };
   const traceAttributes = { 'household.id': request.householdId, 'plan.week': weekKey };
 

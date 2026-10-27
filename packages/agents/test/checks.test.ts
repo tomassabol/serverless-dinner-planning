@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PreferencesSchema, type DinnerDraft, type MealPlanDraft, type Nutrition } from '@dinner/shared';
-import { checkPlan, hasBlocking, type CheckContext } from '../src/checks.js';
+import { checkPlan, hasBlocking, proteinFamily, type CheckContext } from '../src/checks.js';
 
 const dates = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
 
@@ -88,6 +88,25 @@ describe('checkPlan', () => {
     const messages = checkPlan(p, ctx).map((i) => `${i.severity}: ${i.message}`);
     expect(messages).toContain('major: chicken is the main protein in 3 dinners; use it at most twice.');
     expect(messages).toContain('major: "Chicken curry" was already served on 2026-10-20.');
+  });
+
+  it('groups main proteins into families', () => {
+    expect(['medister sausage', 'minced pork', 'pork belly', 'bacon', 'Svinekød'].map(proteinFamily)).toEqual(['pork', 'pork', 'pork', 'pork', 'pork']);
+    expect(['minced beef', 'hamburger', 'hakket oksekød'].map(proteinFamily)).toEqual(['beef', 'hamburger', 'beef']);
+    expect(['kyllingebryst', 'chicken thighs', 'salmon fillet', 'cod', 'red lentils', 'eggs', 'halloumi'].map(proteinFamily)).toEqual([
+      'chicken', 'chicken', 'fish', 'fish', 'legumes', 'eggs', 'cheese',
+    ]);
+    expect(proteinFamily('roast duck')).toBe('duck');
+    expect(proteinFamily('pork roast')).toBe('pork');
+  });
+
+  it('counts a protein family used three times as a repeat', () => {
+    const p = plan([
+      dinner(dates[0]!, 'Medister with potatoes', 'medister sausage'),
+      dinner(dates[1]!, 'Pork pasta', 'minced pork'),
+      dinner(dates[2]!, 'Flæskesteg', 'pork belly'),
+    ]);
+    expect(checkPlan(p, context(p)).map((i) => i.message)).toContain('pork is the main protein in 3 dinners; use it at most twice.');
   });
 
   it('blocks dishes rated thumbs down', () => {

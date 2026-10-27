@@ -113,11 +113,11 @@ function checkRepetition(plan: MealPlanDraft, history: MealRecord[]): Issue[] {
     if (previous) issues.push(blocking(dinner.date, `"${dinner.dish}" is also planned on ${previous}.`));
     dishes.set(dish, dinner.date);
 
-    const protein = normalize(dinner.mainProtein);
-    proteins.set(protein, (proteins.get(protein) ?? 0) + 1);
+    const family = proteinFamily(dinner.mainProtein);
+    proteins.set(family, (proteins.get(family) ?? 0) + 1);
   }
-  for (const [protein, count] of proteins) {
-    if (count > 2) issues.push(major(null, `${protein} is the main protein in ${count} dinners; use it at most twice.`));
+  for (const [family, count] of proteins) {
+    if (count > 2) issues.push(major(null, `${family} is the main protein in ${count} dinners; use it at most twice.`));
   }
 
   const firstDate = plan.dinners.map((d) => d.date).sort()[0];
@@ -132,6 +132,32 @@ function checkRepetition(plan: MealPlanDraft, history: MealRecord[]): Issue[] {
     }
   }
   return issues;
+}
+
+/** Protein families for the repeat check, so "medister sausage", "minced pork" and "pork belly" all count as pork. */
+const PROTEIN_FAMILIES: [family: string, terms: string[]][] = [
+  ['pork', ['pork', 'medister', 'bacon', 'ham', 'flæsk', 'gris', 'svin', 'pancetta', 'chorizo', 'salami', 'frikadelle', 'sausage', 'pølse']],
+  ['beef', ['beef', 'veal', 'steak', 'okse', 'kalv']],
+  ['chicken', ['chicken', 'kylling', 'hen']],
+  ['turkey', ['turkey', 'kalkun']],
+  ['duck', ['duck', 'and']],
+  ['lamb', ['lamb', 'lam']],
+  ['fish', ['fish', 'salmon', 'cod', 'tuna', 'mackerel', 'herring', 'trout', 'plaice', 'pollock', 'haddock', 'hake', 'laks', 'torsk', 'sild', 'rødspætte']],
+  ['shellfish', ['shrimp', 'prawn', 'mussel', 'crab', 'lobster', 'squid', 'scallop', 'rejer']],
+  ['eggs', ['egg', 'æg']],
+  ['legumes', ['lentil', 'chickpea', 'bean', 'pea', 'linse', 'kikært', 'bønne']],
+  ['soy', ['tofu', 'tempeh', 'edamame']],
+  ['cheese', ['cheese', 'halloumi', 'feta', 'paneer', 'ost']],
+];
+
+export function proteinFamily(mainProtein: string): string {
+  const words = normalize(mainProtein).split(' ');
+  for (const [family, terms] of PROTEIN_FAMILIES) {
+    // Short terms ("ham", "and", "ost") must match whole words; longer ones also match Danish compounds like "kyllingebryst".
+    const matches = (w: string, t: string) => w === t || w === `${t}s` || (t.length >= 4 && (w.startsWith(t) || w.endsWith(t)));
+    if (words.some((w) => terms.some((t) => matches(w, t)))) return family;
+  }
+  return normalize(mainProtein);
 }
 
 function checkOffers(dinner: DinnerDraft, ctx: CheckContext): Issue[] {
