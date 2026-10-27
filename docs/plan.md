@@ -159,7 +159,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 | **1. Offer ingestion** ✅ | Tjek adapter, normalization, Haiku tagging, S3 + DDB, daily schedule | a week of normalized food offers for all target chains in S3 |
 | **2. Tools + Gateway** ✅ | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
 | **3. Planner + Judge** ✅ | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
-| **4. Weekly workflow** | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
+| **4. Weekly workflow** ✅ | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
 | **5. Chat agent** | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
 | **6. Web app** | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
 | **7. Hardening** | Observability dashboards and alarms tuned on real runs, cost per run metric, Tjek fallback, prompt caching tuning | about a month of unattended Sundays |
@@ -169,6 +169,12 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 - **Loop:** the planner (Strands, Gateway read tools only) produces a structured `MealPlanDraft`. Code then computes per-serving nutrition through `nutrition_lookup`, checks every offer id with `get_offer`, and runs `checkPlan`, which covers allergens, dislikes, repetition, thumbs-down dishes, offer validity, nutrition ranges and weekday cooking time. Blocking findings go straight back to the planner. Otherwise a fresh judge agent scores the plan. There are at most 3 rounds, and the best plan without blocking issues wins.
 - **First real run (week 45):** approved in round 2 with score 7. Round 1 scored 4 with 13 findings. It took about 3 minutes on Sonnet 4.6.
 - **Strands MCP tool filters** match strings exactly, and regex filters are anchored at the start of the name. Use full names like `dinner-tools___search_offers`.
+
+### Phase 4 notes
+- **Workflow:** EventBridge Scheduler (Sunday 17:00, Europe/Copenhagen) starts the `dinner-prod-weekly-plan` state machine. Its steps: apply defaults → refresh offers (unless `skipFetch`) → plan Lambda (`InvokeAgentRuntime`) → save the plan, shopping list and meal history → Map: one photo per dinner (a failed image becomes `null`) → attach images → send email (unless `sendEmail: false`). Alarms fire on failed or timed-out executions.
+- **Images:** no text-to-image model is offered in the EU regions. Stability Stable Image Core in **us-west-2** is used instead, at about $0.04 per image. Photos are stored at `images/<household>/<week>/<date>-<dish>.jpg`, so unchanged dinners reuse their photo when a week is re-planned. They're served by CloudFront (`CdnStack`), which Phase 6 will extend with the web app as its default behavior.
+- **Email:** SES is in sandbox mode, using verified email identities. `tomassabol.com` DNS is hosted at Vercel, so domain DKIM would need three CNAME records added there. That would improve deliverability and is an optional follow-up.
+- **Plan quality:** on a Tuesday most chains haven't published next week's flyer yet, so the planner falls back on Lidl's everyday prices. A minor check now flags dinners with no real deal. The Sunday run sees far more offers.
 
 ### Open decisions
 1. Tjek ToS: ask for permission, or accept the personal-use risk?

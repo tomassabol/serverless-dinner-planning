@@ -1,3 +1,8 @@
 {
-  "alertEmail": "tomas@tomassabol.com"
+  "alertEmail": "tomas@tomassabol.com",
+  "senderEmail": "tomas@tomassabol.com",
+  "householdEmails": [
+    "tomas@tomassabol.com",
+    "tomassabol2@gmail.com"
+  ]
 }

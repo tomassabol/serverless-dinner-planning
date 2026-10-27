@@ -48,4 +48,5 @@ export type MealRecord = z.infer<typeof MealRecordSchema>;
 export const householdKeys = {
   preferences: (householdId: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: 'PREFERENCES' }),
   meal: (householdId: string, date: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: `MEAL#${date}` }),
+  plan: (householdId: string, week: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: `PLAN#${week}` }),
 };

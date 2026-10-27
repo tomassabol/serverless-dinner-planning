@@ -82,3 +82,38 @@ export const MealPlanSchema = z.object({
   generatedAt: z.iso.datetime(),
 });
 export type MealPlan = z.infer<typeof MealPlanSchema>;
+
+export const ShoppingOfferItemSchema = z.object({
+  offerId: z.string(),
+  heading: z.string(),
+  ingredient: z.string(),
+  price: z.number(),
+  prePrice: z.number().nullable(),
+  validTo: z.string(),
+  forDinners: z.array(z.iso.date()),
+});
+
+export const ShoppingListSchema = z.object({
+  stores: z.array(
+    z.object({
+      chain: z.string(),
+      chainName: z.string(),
+      items: z.array(ShoppingOfferItemSchema),
+      subtotal: z.number(),
+    }),
+  ),
+  /** Ingredients not bought on offer, summed across dinners. */
+  other: z.array(z.object({ name: z.string(), grams: z.number(), forDinners: z.array(z.iso.date()) })),
+  offerTotal: z.number(),
+});
+export type ShoppingList = z.infer<typeof ShoppingListSchema>;
+
+/** The plan as stored in DynamoDB and shown in the email and app. */
+export const StoredPlanSchema = MealPlanSchema.extend({
+  dinners: z.array(DinnerSchema.extend({ imageUrl: z.string().nullable() })),
+  shoppingList: ShoppingListSchema,
+  state: z.enum(['generating_images', 'ready']),
+  executionId: z.string().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+export type StoredPlan = z.infer<typeof StoredPlanSchema>;

@@ -27,7 +27,7 @@ function context(plan: MealPlanDraft, overrides: Partial<CheckContext> = {}): Ch
     week: { key: '2026-W45', dates },
     preferences: PreferencesSchema.parse({ householdId: 'home', settings: { dinnersPerWeek: plan.dinners.length } }),
     history: [],
-    offers: new Map(plan.dinners.map((d) => [`offer-${d.date}`, { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-08T22:59:59.000Z' }])),
+    offers: new Map(plan.dinners.map((d) => [`offer-${d.date}`, { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-08T22:59:59.000Z', everydayPrice: false }])),
     nutrition: new Map(plan.dinners.map((d) => [d.date, goodNutrition])),
     weekdays: new Set(dates.slice(0, 5)),
     ...overrides,
@@ -65,7 +65,7 @@ describe('checkPlan', () => {
     const p = plan([dinner(dates[0]!, 'Tacos', 'beef'), dinner('2026-11-20', 'Tacos', 'beef')]);
     const ctx = context(p, {
       preferences: PreferencesSchema.parse({ householdId: 'home', settings: { dinnersPerWeek: 5 } }),
-      offers: new Map([[`offer-${dates[0]}`, { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-08T22:59:59.000Z' }], ['offer-2026-11-20', { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-30T22:59:59.000Z' }]]),
+      offers: new Map([[`offer-${dates[0]}`, { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-08T22:59:59.000Z', everydayPrice: false }], ['offer-2026-11-20', { validFrom: '2026-11-01T23:00:00.000Z', validTo: '2026-11-30T22:59:59.000Z', everydayPrice: false }]]),
       nutrition: new Map([[dates[0]!, goodNutrition], ['2026-11-20', goodNutrition]]),
     });
     const messages = checkPlan(p, ctx).filter((i) => i.severity === 'blocking').map((i) => i.message);
@@ -106,6 +106,15 @@ describe('checkPlan', () => {
     const messages = checkPlan(p, context(p)).map((i) => `${i.severity}: ${i.message}`);
     expect(messages).toContain('blocking: Offer made-up does not exist; only use ids returned by search_offers.');
     expect(messages).toContain('major: No ingredient is bought on offer; build the dinner around at least one current deal.');
+  });
+
+  it('flags dinners built only on everyday prices', () => {
+    const p = plan([dinner(dates[0]!, 'Salmon bowl', 'salmon')]);
+    const ctx = context(p);
+    ctx.offers.set(`offer-${dates[0]}`, { ...ctx.offers.get(`offer-${dates[0]}`)!, everydayPrice: true });
+    expect(checkPlan(p, ctx).map((i) => `${i.severity}: ${i.message}`)).toEqual([
+      "minor: Only everyday prices are used; prefer at least one of this week's real deals if one fits.",
+    ]);
   });
 
   it('checks nutrition ranges and weekday cooking time', () => {

@@ -66,3 +66,10 @@ export type Offer = z.infer<typeof OfferSchema>;
 export function isFoodOffer(offer: Offer): boolean {
   return offer.tags !== null && offer.tags.category !== 'non_food';
 }
+
+const EVERYDAY_PRICE = /fast lav pris|altid lav pris|hver dag/i;
+
+/** Permanent low prices (e.g. Lidl's "Fast lav pris") rather than this week's deals. */
+export function isEverydayPrice(offer: Pick<Offer, 'description'>): boolean {
+  return EVERYDAY_PRICE.test(offer.description ?? '');
+}

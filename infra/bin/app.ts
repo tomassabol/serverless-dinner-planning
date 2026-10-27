@@ -4,10 +4,12 @@ import { isStage, STAGES } from '@dinner/shared';
 import { getStageConfig, REGION, TAGS } from '../lib/config';
 import { AgentsStack } from '../lib/stacks/agents-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
+import { CdnStack } from '../lib/stacks/cdn-stack';
 import { DataStack } from '../lib/stacks/data-stack';
 import { GatewayStack } from '../lib/stacks/gateway-stack';
 import { IngestStack } from '../lib/stacks/ingest-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
+import { WorkflowStack } from '../lib/stacks/workflow-stack';
 
 const app = new App();
 
@@ -23,7 +25,7 @@ for (const [key, value] of Object.entries(TAGS(stage))) {
   Tags.of(app).add(key, value);
 }
 
-new AuthStack(app, `${config.prefix}-auth`, { env, config });
+const auth = new AuthStack(app, `${config.prefix}-auth`, { env, config });
 
 const monitoring = new MonitoringStack(app, `${config.prefix}-monitoring`, {
   env,
@@ -33,7 +35,7 @@ const monitoring = new MonitoringStack(app, `${config.prefix}-monitoring`, {
 
 const data = new DataStack(app, `${config.prefix}-data`, { env, config });
 
-new IngestStack(app, `${config.prefix}-ingest`, {
+const ingest = new IngestStack(app, `${config.prefix}-ingest`, {
   env,
   config,
   table: data.table,
@@ -48,4 +50,21 @@ const gateway = new GatewayStack(app, `${config.prefix}-gateway`, {
   bucket: data.bucket,
 });
 
-new AgentsStack(app, `${config.prefix}-agents`, { env, config, gateway: gateway.gateway });
+const agents = new AgentsStack(app, `${config.prefix}-agents`, { env, config, gateway: gateway.gateway });
+
+const cdn = new CdnStack(app, `${config.prefix}-cdn`, { env, config });
+
+const alertEmail: string = app.node.tryGetContext('alertEmail');
+new WorkflowStack(app, `${config.prefix}-workflow`, {
+  env,
+  config,
+  table: data.table,
+  mediaBucket: cdn.mediaBucket,
+  mediaBaseUrl: cdn.baseUrl,
+  userPool: auth.userPool,
+  ingestFn: ingest.fn,
+  weeklyRuntimeArn: agents.weeklyRuntime.attrAgentRuntimeArn,
+  alertTopic: monitoring.alertTopic,
+  senderEmail: app.node.tryGetContext('senderEmail') ?? alertEmail,
+  verifiedRecipients: app.node.tryGetContext('householdEmails') ?? [],
+});

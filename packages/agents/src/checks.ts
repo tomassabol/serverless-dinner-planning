@@ -39,7 +39,7 @@ export interface CheckContext {
   preferences: Preferences;
   history: MealRecord[];
   /** Offer validity by id; missing ids are unknown offers. */
-  offers: Map<string, { validFrom: string; validTo: string }>;
+  offers: Map<string, { validFrom: string; validTo: string; everydayPrice: boolean }>;
   /** Nutrition per serving by dinner date. */
   nutrition: Map<string, Nutrition>;
   /** Weekdays in the plan (YYYY-MM-DD) that count as weekdays for cooking-time limits. */
@@ -139,6 +139,10 @@ function checkOffers(dinner: DinnerDraft, ctx: CheckContext): Issue[] {
   const offerIds = dinner.ingredients.map((i) => i.offerId).filter((id): id is string => !!id);
   if (offerIds.length === 0) {
     issues.push(major(dinner.date, 'No ingredient is bought on offer; build the dinner around at least one current deal.'));
+  }
+  const known = offerIds.map((id) => ctx.offers.get(id)).filter((o) => o !== undefined);
+  if (known.length > 0 && known.every((o) => o.everydayPrice)) {
+    issues.push(minor(dinner.date, 'Only everyday prices are used; prefer at least one of this week\'s real deals if one fits.'));
   }
   const dayStart = `${dinner.date}T00:00:00`;
   for (const id of offerIds) {

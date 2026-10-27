@@ -10,6 +10,7 @@ packages/shared/  Shared types, Zod schemas, chain list, week helpers
 packages/ingest/  Daily offer ingest: Tjek → S3 raw + DynamoDB + week snapshots
 packages/tools/   AgentCore Gateway tools (offers, Frida nutrition, preferences, meal history) and the request interceptor
 packages/agents/  Strands agents on AgentCore Runtime: weekly planner + judge loop with code-only plan checks
+packages/workflow/ Step Functions tasks: run the planner, save plan + shopping list, meal photos, SES email
 scripts/          Operational scripts
 ```
 
@@ -56,6 +57,18 @@ Invoke the deployed weekly runtime (AgentCore Runtime, IAM auth):
 AWS_PROFILE=tomassabol pnpm --filter @dinner/agents invoke next
 ```
 
+Start the weekly workflow by hand (it also runs every Sunday at 17:00 Copenhagen time). `skipFetch` skips the offer refresh, `sendEmail: false` skips the email:
+
+```bash
+aws stepfunctions start-execution --state-machine-arn arn:aws:states:eu-west-1:849368888067:stateMachine:dinner-prod-weekly-plan --input '{"householdId":"home","week":"next"}' --profile tomassabol --region eu-west-1
+```
+
+Preview the plan email for a plan JSON file (from `pnpm --filter @dinner/agents invoke next plan.json`):
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/workflow preview-email plan.json preview.html
+```
+
 Run the deployed ingest by hand (it also runs daily at 05:00 Copenhagen time):
 
 ```bash
@@ -82,8 +95,9 @@ There is a single stage, `prod` (the default `stage` context). Every resource is
    ```bash
    scripts/create-user.sh you@example.com [given-name]
    ```
-2. Confirm the SNS subscription email for `dinner-prod-alerts`, so ingest alarms reach you.
-3. Activate the `project` cost allocation tag in Billing → Cost allocation tags, so the budget filter starts working. The tag only shows up there after tagged resources exist.
+2. Confirm the SES verification emails for the sender and every household address (SES is in sandbox mode, so recipients must be verified). Addresses live in `infra/cdk.context.json` (`senderEmail`, `householdEmails`).
+3. Confirm the SNS subscription email for `dinner-prod-alerts`, so ingest alarms reach you.
+4. Activate the `project` cost allocation tag in Billing → Cost allocation tags, so the budget filter starts working. The tag only shows up there after tagged resources exist.
 
 ## Data attribution
 

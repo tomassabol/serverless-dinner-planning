@@ -1,12 +1,11 @@
 import { GetObjectCommand, NoSuchKey, type S3Client } from '@aws-sdk/client-s3';
 import { TZDate } from '@date-fns/tz';
 import Fuse from 'fuse.js';
-import { TIME_ZONE, resolveWeekKey, type Offer } from '@dinner/shared';
+import { TIME_ZONE, isEverydayPrice, resolveWeekKey, type Offer } from '@dinner/shared';
 import type { z } from 'zod';
 import type { SearchOffersInput } from './definitions.js';
 
 const CACHE_TTL_MS = 5 * 60_000;
-const EVERYDAY_PRICE = /fast lav pris|altid lav pris|hver dag/i;
 
 export interface OfferSummary {
   id: string;
@@ -125,7 +124,7 @@ export function summarize(offer: Offer): OfferSummary {
     amount: offer.amount,
     validFrom: offer.validFrom,
     validTo: offer.validTo,
-    everydayPrice: EVERYDAY_PRICE.test(offer.description ?? ''),
+    everydayPrice: isEverydayPrice(offer),
   };
 }
 

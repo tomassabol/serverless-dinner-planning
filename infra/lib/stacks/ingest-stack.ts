@@ -19,11 +19,13 @@ export interface IngestStackProps extends StackProps {
 }
 
 export class IngestStack extends Stack {
+  readonly fn: NodeFunction;
+
   constructor(scope: Construct, id: string, props: IngestStackProps) {
     super(scope, id, props);
     const { config, table, bucket, alertTopic } = props;
 
-    const fn = new NodeFunction(this, 'IngestFunction', {
+    const fn = (this.fn = new NodeFunction(this, 'IngestFunction', {
       config,
       serviceName: 'ingest',
       entry: 'packages/ingest/src/handler.ts',
@@ -36,7 +38,7 @@ export class IngestStack extends Stack {
         BUCKET_NAME: bucket.bucketName,
         TAG_MODEL_ID,
       },
-    });
+    }));
 
     table.grantReadWriteData(fn);
     bucket.grantReadWrite(fn);

@@ -2,6 +2,7 @@ import { Agent, BedrockModel, type AgentResult, type McpClient } from '@strands-
 import {
   JudgeVerdictSchema,
   MealPlanDraftSchema,
+  isEverydayPrice,
   isoWeekDates,
   resolveWeekKey,
   type Dinner,
@@ -156,12 +157,12 @@ async function computeNutrition(gateway: McpClient, plan: MealPlanDraft, serving
 
 async function fetchOffers(gateway: McpClient, plan: MealPlanDraft) {
   const ids = [...new Set(plan.dinners.flatMap((d) => d.ingredients.map((i) => i.offerId)).filter((id): id is string => !!id))];
-  const offers = new Map<string, { validFrom: string; validTo: string }>();
+  const offers = new Map<string, { validFrom: string; validTo: string; everydayPrice: boolean }>();
   await Promise.all(
     ids.map(async (id) => {
       try {
         const offer = await callTool<Offer>(gateway, 'get_offer', { offerId: id });
-        offers.set(id, { validFrom: offer.validFrom, validTo: offer.validTo });
+        offers.set(id, { validFrom: offer.validFrom, validTo: offer.validTo, everydayPrice: isEverydayPrice(offer) });
       } catch {
         // Unknown ids are reported by the checks.
       }
