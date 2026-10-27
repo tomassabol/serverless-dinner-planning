@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { ChainIdSchema, OfferCategorySchema, PlanSettingsSchema } from '@dinner/shared';
+import { ChainIdSchema, DinnerDraftSchema, OfferCategorySchema, PlanSettingsSchema } from '@dinner/shared';
 
 const WeekSchema = z
   .string()
   .regex(/^(current|next|\d{4}-W\d{2})$/)
-  .describe('Which ISO week to search: "current", "next" or an ISO week like "2026-W45". Defaults to "current".');
+  .describe('Which ISO week: "current", "next" or an ISO week like "2026-W45". Defaults to "current".');
 
 export const SearchOffersInput = z.object({
   query: z
@@ -59,6 +59,29 @@ export const GetMealHistoryInput = z.object({
   weeks: z.number().int().min(1).max(26).optional().describe('How many weeks back to look. Defaults to 8.'),
 });
 
+export const GetPlanInput = z.object({ week: WeekSchema.optional() });
+
+export const ReplaceDinnerInput = z.object({
+  week: WeekSchema.optional(),
+  date: z.iso.date().describe('Date of the dinner to replace or add, YYYY-MM-DD, within the week.'),
+  dinner: DinnerDraftSchema.omit({ date: true }).describe('The new dinner. Same rules as the weekly plan: plain English ingredient names, raw grams for all servings, offerId from search_offers or null.'),
+});
+
+export const RemoveDinnerInput = z.object({
+  week: WeekSchema.optional(),
+  date: z.iso.date().describe('Date of the dinner to remove, YYYY-MM-DD.'),
+});
+
+export const RateMealInput = z.object({
+  date: z.iso.date().describe('Date of the dinner, YYYY-MM-DD.'),
+  rating: z.enum(['up', 'down']).describe('"up" if they liked it, "down" if they did not. Thumbs-down dishes are never planned again.'),
+});
+
+export const ReplanWeekInput = z.object({
+  week: WeekSchema.optional(),
+  reason: z.string().optional().describe('Why the household wants a new plan, for the log.'),
+});
+
 export const TOOLS = {
   search_offers: {
     description:
@@ -88,12 +111,41 @@ export const TOOLS = {
     description: 'List recently planned or cooked dinners with ratings, to avoid repeating dishes and main proteins.',
     input: GetMealHistoryInput,
   },
+  get_plan: {
+    description:
+      "Get the household's stored dinner plan for a week: every dinner with ingredients, recipe steps, nutrition per serving and photo, plus the shopping list grouped by store.",
+    input: GetPlanInput,
+  },
+  replace_dinner: {
+    description:
+      'Replace (or add) one dinner in the stored plan. Checks allergies, recomputes nutrition and the shopping list, updates the meal history and generates a new photo in the background. Only call this when the user asks for a change.',
+    input: ReplaceDinnerInput,
+  },
+  remove_dinner: {
+    description: 'Remove one dinner from the stored plan and update the shopping list. Only call this when the user asks.',
+    input: RemoveDinnerInput,
+  },
+  rate_meal: {
+    description: 'Record whether the household liked a dinner they had. Use when the user gives feedback about a meal.',
+    input: RateMealInput,
+  },
+  replan_week: {
+    description:
+      'Start a completely new weekly plan in the background with the current offers (no new offer fetch). Takes about 3-5 minutes; the household gets the new plan by email. Only call this when the user explicitly wants a fresh plan.',
+    input: ReplanWeekInput,
+  },
 } as const;
 
 export type ToolName = keyof typeof TOOLS;
 
 /** Tools that change data; the interceptor only allows them for the chat agent. */
-export const WRITE_TOOLS: ReadonlySet<ToolName> = new Set(['update_preferences']);
+export const WRITE_TOOLS: ReadonlySet<ToolName> = new Set([
+  'update_preferences',
+  'replace_dinner',
+  'remove_dinner',
+  'rate_meal',
+  'replan_week',
+]);
 
 type JsonSchema = {
   type?: string | string[];

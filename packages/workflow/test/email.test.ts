@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { StoredPlan } from '@dinner/shared';
+import { buildShoppingList, type StoredPlan } from '@dinner/shared';
 import { renderPlanEmail } from '../src/email/render.js';
-import { buildShoppingList } from '../src/shopping.js';
 import { dinner, offer } from './fixtures.js';
 
 const dinners = [

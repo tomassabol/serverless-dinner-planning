@@ -32,6 +32,8 @@ export interface WorkflowStackProps extends StackProps {
   verifiedRecipients: string[];
 }
 
+export const weeklyPlanStateMachineName = (config: StageConfig) => `${config.prefix}-weekly-plan`;
+
 /** Image model lives in us-west-2: no text-to-image model is offered in the EU regions. */
 const IMAGE_MODEL_ARN = 'arn:aws:bedrock:us-west-2::foundation-model/stability.stable-image-core-v1:1';
 
@@ -71,8 +73,11 @@ export class WorkflowStack extends Stack {
     const imageFn = fn('ImageFunction', 'workflow-image', Duration.seconds(90), {
       MEDIA_BUCKET: mediaBucket.bucketName,
       MEDIA_BASE_URL: props.mediaBaseUrl,
+      TABLE_NAME: table.tableName,
     });
     mediaBucket.grantReadWrite(imageFn, 'images/*');
+    // Chat edits invoke this function directly (attach mode) to put the new photo into the stored plan.
+    table.grantReadWriteData(imageFn);
     imageFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock:InvokeModel'], resources: [IMAGE_MODEL_ARN] }));
 
     const attachFn = fn('AttachImagesFunction', 'workflow-attach-images', Duration.seconds(30), { TABLE_NAME: table.tableName });
@@ -93,7 +98,7 @@ export class WorkflowStack extends Stack {
     );
 
     this.stateMachine = new sfn.StateMachine(this, 'WeeklyPlan', {
-      stateMachineName: `${config.prefix}-weekly-plan`,
+      stateMachineName: weeklyPlanStateMachineName(config),
       definitionBody: sfn.DefinitionBody.fromChainable(this.definition({ planFn, saveFn, imageFn, attachFn, emailFn, ingestFn: props.ingestFn })),
       timeout: Duration.minutes(45),
       tracingEnabled: true,

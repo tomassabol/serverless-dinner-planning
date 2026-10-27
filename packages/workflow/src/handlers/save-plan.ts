@@ -1,10 +1,15 @@
 /** Step Functions task: stores the plan with its shopping list and syncs the meal history. */
 import { BatchGetCommand } from '@aws-sdk/lib-dynamodb';
-import { MealPlanSchema, OfferSchema, type Offer, type StoredPlan } from '@dinner/shared';
+import {
+  MealPlanSchema,
+  OfferSchema,
+  type Offer,
+  type StoredPlan,
+  buildShoppingList,
+} from '@dinner/shared';
 import { z } from 'zod';
 import { ddb, env, logger } from '../clients.js';
 import { PlanRepo } from '../plans.js';
-import { buildShoppingList } from '../shopping.js';
 
 const { TABLE_NAME } = env('TABLE_NAME');
 const plans = new PlanRepo(ddb, TABLE_NAME);

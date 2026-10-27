@@ -3,10 +3,12 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import { HeadObjectCommand, NotFound, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { HouseholdIdSchema } from '@dinner/shared';
 import { z } from 'zod';
-import { env, logger, tracer } from '../clients.js';
+import { ddb, env, logger, tracer } from '../clients.js';
 import { IMAGE_MODEL_ID, IMAGE_MODEL_REGION, imageKey, imagePrompt } from '../images.js';
+import { PlanRepo } from '../plans.js';
 
-const { MEDIA_BUCKET, MEDIA_BASE_URL } = env('MEDIA_BUCKET', 'MEDIA_BASE_URL');
+const { MEDIA_BUCKET, MEDIA_BASE_URL, TABLE_NAME } = env('MEDIA_BUCKET', 'MEDIA_BASE_URL', 'TABLE_NAME');
+const plans = new PlanRepo(ddb, TABLE_NAME);
 const s3 = tracer.captureAWSv3Client(new S3Client({}));
 const bedrock = tracer.captureAWSv3Client(new BedrockRuntimeClient({ region: IMAGE_MODEL_REGION }));
 
@@ -14,20 +16,27 @@ const InputSchema = z.object({
   householdId: HouseholdIdSchema,
   week: z.string(),
   dinner: z.object({ date: z.iso.date(), dish: z.string(), description: z.string(), cuisine: z.string() }),
+  /** Set by the chat tools: write the URL into the stored plan (the workflow attaches images itself). */
+  attach: z.boolean().default(false),
 });
 
 const StabilityResponse = z.object({ images: z.array(z.string()).min(1), finish_reasons: z.array(z.string().nullable()) });
 
 export const handler = async (event: unknown) => {
-  const { householdId, week, dinner } = InputSchema.parse(event);
+  const { householdId, week, dinner, attach } = InputSchema.parse(event);
   const key = imageKey(householdId, week, dinner);
   const url = `${MEDIA_BASE_URL}/${key}`;
 
   if (await exists(key)) {
     logger.info('Reusing image', { key });
-    return { date: dinner.date, imageUrl: url };
+  } else {
+    await generate(key, dinner);
   }
+  if (attach) await attachToPlan(householdId, week, dinner, url);
+  return { date: dinner.date, imageUrl: url };
+};
 
+async function generate(key: string, dinner: z.infer<typeof InputSchema>['dinner']) {
   const { prompt, negativePrompt } = imagePrompt(dinner);
   const response = await bedrock.send(
     new InvokeModelCommand({
@@ -50,8 +59,19 @@ export const handler = async (event: unknown) => {
     }),
   );
   logger.info('Image generated', { key });
-  return { date: dinner.date, imageUrl: url };
-};
+}
+
+/** Only attaches if the day still has the same dish, so a stale request can't overwrite a newer change. */
+async function attachToPlan(householdId: string, week: string, dinner: { date: string; dish: string }, url: string) {
+  const plan = await plans.get(householdId, week);
+  const target = plan?.dinners.find((d) => d.date === dinner.date && d.dish === dinner.dish);
+  if (!plan || !target) return;
+  await plans.put({
+    ...plan,
+    dinners: plan.dinners.map((d) => (d === target ? { ...d, imageUrl: url } : d)),
+    updatedAt: new Date().toISOString(),
+  });
+}
 
 async function exists(key: string): Promise<boolean> {
   try {

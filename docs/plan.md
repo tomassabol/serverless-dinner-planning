@@ -160,7 +160,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 | **2. Tools + Gateway** ✅ | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
 | **3. Planner + Judge** ✅ | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
 | **4. Weekly workflow** ✅ | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
-| **5. Chat agent** | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
+| **5. Chat agent** ✅ | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
 | **6. Web app** | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
 | **7. Hardening** | Observability dashboards and alarms tuned on real runs, cost per run metric, Tjek fallback, prompt caching tuning | about a month of unattended Sundays |
 
@@ -175,6 +175,17 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 - **Images:** no text-to-image model is offered in the EU regions. Stability Stable Image Core in **us-west-2** is used instead, at about $0.04 per image. Photos are stored at `images/<household>/<week>/<date>-<dish>.jpg`, so unchanged dinners reuse their photo when a week is re-planned. They're served by CloudFront (`CdnStack`), which Phase 6 will extend with the web app as its default behavior.
 - **Email:** SES is in sandbox mode, using verified email identities. `tomassabol.com` DNS is hosted at Vercel, so domain DKIM would need three CNAME records added there. That would improve deliverability and is an optional follow-up.
 - **Plan quality:** on a Tuesday most chains haven't published next week's flyer yet, so the planner falls back on Lidl's everyday prices. A minor check now flags dinners with no real deal. The Sunday run sees far more offers.
+
+### Phase 5 notes
+- **Chat runtime** (`dinner_prod_chat`): built from the same code package as the weekly runtime (`chat.js`). It streams SSE events: `text` deltas, `tool`, `done`, `error`.
+- **AgentCore Memory** (`dinner_prod_memory`): the actor is the household, so both members share what the assistant learns, and every message carries the speaker's name. Short-term history is reloaded from `ListEvents` on each turn. A Strands `MemoryManager` with the SDK's AgentCore stores injects long-term recall and writes the turn back. Its strategies are user preferences (`/households/{actorId}/preferences`), facts (`/households/{actorId}/facts`) and session summaries. Allergies are still saved authoritatively in DynamoDB through `update_preferences`.
+- **New chat-only Gateway tools:** `get_plan`, `replace_dinner` (blocks allergens, recomputes nutrition and the shopping list, syncs history, and generates a new photo asynchronously), `remove_dinner`, `rate_meal` and `replan_week` (starts the workflow with `skipFetch`). The interceptor allows all write tools only for `X-Dinner-Caller: chat`.
+- **API:** REST API with a Cognito authorizer (ID token, which carries `custom:householdId`).
+  - `POST /chat` streams through API Gateway response streaming to a `streamifyResponse` Lambda, then to `InvokeAgentRuntime`. The integration timeout is 10 minutes.
+  - `GET /conversations`, `GET /conversations/{id}` and `GET /plans/{week}` are buffered.
+  - The conversation index (`CONV#…`) also acts as the ownership check for reading messages.
+- **Cycle avoidance:** the Gateway tools reach the Workflow stack's state machine and image Lambda through ARNs built from names, not CloudFormation references.
+- **Lessons:** the model can't be trusted to map weekdays to dates, so the system prompt lists every date with its day name and `get_plan` returns day names. `@fastify/sse` JSON-encodes `data`, so the runtime yields objects rather than strings.
 
 ### Open decisions
 1. Tjek ToS: ask for permission, or accept the personal-use risk?

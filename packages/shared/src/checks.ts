@@ -1,4 +1,5 @@
-import type { DinnerDraft, Issue, MealPlanDraft, MealRecord, Nutrition, Preferences } from '@dinner/shared';
+import type { MealRecord, Preferences } from './household.js';
+import type { DinnerDraft, Issue, MealPlanDraft, Nutrition } from './plan.js';
 
 /**
  * Words that indicate an allergen in an ingredient or dish name (EU major allergens).
@@ -77,7 +78,7 @@ function checkStructure(plan: MealPlanDraft, ctx: CheckContext): Issue[] {
   return issues;
 }
 
-function checkAllergens(dinner: DinnerDraft, preferences: Preferences): Issue[] {
+export function checkAllergens(dinner: DinnerDraft, preferences: Preferences): Issue[] {
   const issues: Issue[] = [];
   const texts = [dinner.dish, ...dinner.ingredients.map((i) => i.name)].map((t) => t.toLowerCase());
   for (const member of preferences.members) {
@@ -93,7 +94,7 @@ function checkAllergens(dinner: DinnerDraft, preferences: Preferences): Issue[] 
   return issues;
 }
 
-function checkDislikes(dinner: DinnerDraft, preferences: Preferences): Issue[] {
+export function checkDislikes(dinner: DinnerDraft, preferences: Preferences): Issue[] {
   const texts = [dinner.dish, ...dinner.ingredients.map((i) => i.name)].map((t) => t.toLowerCase());
   return preferences.members.flatMap((member) =>
     member.dislikes

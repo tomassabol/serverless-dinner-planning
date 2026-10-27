@@ -3,6 +3,7 @@ import { App, Tags } from 'aws-cdk-lib';
 import { isStage, STAGES } from '@dinner/shared';
 import { getStageConfig, REGION, TAGS } from '../lib/config';
 import { AgentsStack } from '../lib/stacks/agents-stack';
+import { ApiStack } from '../lib/stacks/api-stack';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { CdnStack } from '../lib/stacks/cdn-stack';
 import { DataStack } from '../lib/stacks/data-stack';
@@ -67,4 +68,14 @@ new WorkflowStack(app, `${config.prefix}-workflow`, {
   alertTopic: monitoring.alertTopic,
   senderEmail: app.node.tryGetContext('senderEmail') ?? alertEmail,
   verifiedRecipients: app.node.tryGetContext('householdEmails') ?? [],
+});
+
+new ApiStack(app, `${config.prefix}-api`, {
+  env,
+  config,
+  table: data.table,
+  userPool: auth.userPool,
+  chatRuntime: agents.chatRuntime,
+  memory: agents.memory,
+  devOrigins: ['http://localhost:5173'],
 });

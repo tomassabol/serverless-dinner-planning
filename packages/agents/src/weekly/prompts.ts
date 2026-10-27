@@ -1,5 +1,5 @@
+import { NO_REPEAT_DAYS, NUTRITION_LIMITS } from '@dinner/shared';
 import type { Issue, JudgeVerdict, MealPlanDraft, MealRecord, Nutrition, Preferences } from '@dinner/shared';
-import { NUTRITION_LIMITS, NO_REPEAT_DAYS } from '../checks.js';
 
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' });
 const dayName = (date: string) => WEEKDAY.format(new Date(`${date}T12:00:00Z`));

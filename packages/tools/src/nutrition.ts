@@ -69,6 +69,15 @@ const SYNONYMS: Record<string, string> = {
   filet: 'fillet',
   fillets: 'fillet',
   yogurt: 'yoghurt',
+  // Frida only has generic pasta.
+  penne: 'pasta',
+  fusilli: 'pasta',
+  farfalle: 'pasta',
+  rigatoni: 'pasta',
+  tagliatelle: 'pasta',
+  linguine: 'pasta',
+  macaroni: 'pasta',
+  spaghetti: 'pasta',
 };
 
 const STOPWORDS = new Set(['fresh', 'organic', 'danish', 'of', 'and', 'the', 'a', 'chopped', 'sliced', 'diced']);

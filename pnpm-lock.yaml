@@ -42,9 +42,15 @@ importers:
       '@aws-crypto/sha256-js':
         specifier: ^5.2.0
         version: 5.2.0
+      '@aws-sdk/client-bedrock-agentcore':
+        specifier: ^3.1156.0
+        version: 3.1156.0
       '@aws-sdk/credential-providers':
         specifier: ^3.1156.0
         version: 3.1156.0
+      '@date-fns/tz':
+        specifier: ^1.5.0
+        version: 1.5.0
       '@dinner/shared':
         specifier: workspace:*
         version: link:../shared
@@ -67,12 +73,46 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@aws-sdk/client-bedrock-agentcore':
-        specifier: ^3.1156.0
-        version: 3.1156.0
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/api:
+    dependencies:
+      '@aws-lambda-powertools/logger':
+        specifier: ^2.36.0
+        version: 2.36.0
+      '@aws-sdk/client-bedrock-agentcore':
+        specifier: ^3.1156.0
+        version: 3.1156.0
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.1156.0
+        version: 3.1156.0
+      '@aws-sdk/lib-dynamodb':
+        specifier: ^3.1156.0
+        version: 3.1156.0(@aws-sdk/client-dynamodb@3.1156.0)
+      '@dinner/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@dinner/workflow':
+        specifier: workspace:*
+        version: link:../workflow
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@aws-sdk/client-lambda':
+        specifier: ^3.1156.0
+        version: 3.1156.0
+      '@types/aws-lambda':
+        specifier: ^8.10.164
+        version: 8.10.164
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -147,7 +187,13 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.1156.0
         version: 3.1156.0
+      '@aws-sdk/client-lambda':
+        specifier: ^3.1156.0
+        version: 3.1156.0
       '@aws-sdk/client-s3':
+        specifier: ^3.1156.0
+        version: 3.1156.0
+      '@aws-sdk/client-sfn':
         specifier: ^3.1156.0
         version: 3.1156.0
       '@aws-sdk/lib-dynamodb':
@@ -159,6 +205,9 @@ importers:
       '@dinner/shared':
         specifier: workspace:*
         version: link:../shared
+      '@dinner/workflow':
+        specifier: workspace:*
+        version: link:../workflow
       fuse.js:
         specifier: ^7.5.0
         version: 7.5.0
@@ -316,12 +365,20 @@ packages:
     resolution: {integrity: sha512-K7wOerEfbVIMHxssmqXPKw/TtrKl9D7jDv1f8AtCr0S1jh040HChaV1vgDtzU2tmbCFlVvLQrG6vvZbHrTwacw==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-lambda@3.1156.0':
+    resolution: {integrity: sha512-HMwqZ9ImXWSm7wRKytFaanXYbRm1wK4wPXz59mNgLZxNr461MLj3xfNGzJGnb6a3gZ0yYTkPwUDk0LGCwtb3bQ==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/client-s3@3.1156.0':
     resolution: {integrity: sha512-Z2PqQqKMDVX56tNZ6ggmjoI5o/8+4+8ArmjLwE5ktYsEzs1BrvklBT1ZzI+s0Vcf3wfPguoEMD7EkMswmEta/A==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-sesv2@3.1156.0':
     resolution: {integrity: sha512-ghZ4piyZWPIHscYsBhFQtRAjealFX/f4a+d/OQPWijIvH9nGRfbcuL5ssKyh0e+iStcXH1KzI/YuwxgoFMaYSw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-sfn@3.1156.0':
+    resolution: {integrity: sha512-6BVTr4l2XLZSjHv68NwJ6uf9l/FHjX6bmgGRus1EEM1yi4E3txkeNb7HbalNvpLLIa6BDlP7KOjOPAHQamyHdA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.5':
@@ -2336,6 +2393,17 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
+  '@aws-sdk/client-lambda@3.1156.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.5
+      '@aws-sdk/credential-provider-node': 3.972.88
+      '@aws-sdk/types': 3.975.0
+      '@smithy/core': 3.36.2
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
   '@aws-sdk/client-s3@3.1156.0':
     dependencies:
       '@aws-sdk/checksums': 3.1001.5
@@ -2355,6 +2423,17 @@ snapshots:
       '@aws-sdk/core': 3.978.5
       '@aws-sdk/credential-provider-node': 3.972.88
       '@aws-sdk/signature-v4-multi-region': 3.996.49
+      '@aws-sdk/types': 3.975.0
+      '@smithy/core': 3.36.2
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/client-sfn@3.1156.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.5
+      '@aws-sdk/credential-provider-node': 3.972.88
       '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.36.2
       '@smithy/fetch-http-handler': 5.8.0

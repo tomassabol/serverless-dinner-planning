@@ -10,6 +10,7 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import type { Construct } from 'constructs';
 import type { StageConfig } from '../config';
 import { NodeFunction, REPO_ROOT } from '../constructs/node-function';
+import { weeklyPlanStateMachineName } from './workflow-stack';
 
 export interface GatewayStackProps extends StackProps {
   config: StageConfig;
@@ -26,6 +27,8 @@ export class GatewayStack extends Stack {
   constructor(scope: Construct, id: string, props: GatewayStackProps) {
     super(scope, id, props);
     const { config, table, bucket } = props;
+    const weeklyPlanArn = `arn:${this.partition}:states:${this.region}:${this.account}:stateMachine:${weeklyPlanStateMachineName(config)}`;
+    const imageFunctionName = `${config.prefix}-workflow-image`;
 
     const toolsFn = new NodeFunction(this, 'ToolsFunction', {
       config,
@@ -34,11 +37,25 @@ export class GatewayStack extends Stack {
       description: 'AgentCore Gateway tools: offers, nutrition, preferences, meal history',
       memorySize: 1024,
       timeout: Duration.seconds(20),
-      environment: { TABLE_NAME: table.tableName, BUCKET_NAME: bucket.bucketName },
+      environment: {
+        TABLE_NAME: table.tableName,
+        BUCKET_NAME: bucket.bucketName,
+        STATE_MACHINE_ARN: weeklyPlanArn,
+        IMAGE_FUNCTION_NAME: imageFunctionName,
+      },
       bundling: { loader: { '.json': 'json' } },
     });
     table.grantReadWriteData(toolsFn);
     bucket.grantRead(toolsFn, 'snapshots/*');
+    // Chat tools start re-plans and request meal photos from the Workflow stack. The ARNs are built
+    // from names, because a CloudFormation reference would make Gateway -> Agents -> Workflow a cycle.
+    toolsFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['states:StartExecution'], resources: [weeklyPlanArn] }));
+    toolsFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: [`arn:${this.partition}:lambda:${this.region}:${this.account}:function:${imageFunctionName}`],
+      }),
+    );
 
     const interceptorFn = new NodeFunction(this, 'InterceptorFunction', {
       config,

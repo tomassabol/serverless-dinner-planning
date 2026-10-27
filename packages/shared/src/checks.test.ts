@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PreferencesSchema, type DinnerDraft, type MealPlanDraft, type Nutrition } from '@dinner/shared';
-import { checkPlan, hasBlocking, proteinFamily, type CheckContext } from '../src/checks.js';
+import { checkPlan, hasBlocking, proteinFamily, type CheckContext } from './checks.js';
+import { PreferencesSchema } from './household.js';
+import type { DinnerDraft, MealPlanDraft, Nutrition } from './plan.js';
 
 const dates = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
 

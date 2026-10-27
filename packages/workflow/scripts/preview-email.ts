@@ -6,9 +6,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { BatchGetCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { MealPlanSchema, OfferSchema, type Offer, type StoredPlan } from '@dinner/shared';
+import {
+  MealPlanSchema,
+  OfferSchema,
+  type Offer,
+  type StoredPlan,
+  buildShoppingList,
+} from '@dinner/shared';
 import { renderPlanEmail } from '../src/email/render.js';
-import { buildShoppingList } from '../src/shopping.js';
 
 const [planPath, outPath, imageUrl] = process.argv.slice(2);
 if (!planPath || !outPath) throw new Error('Usage: preview-email <plan.json> <out.html> [imageUrl]');

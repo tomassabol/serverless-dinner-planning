@@ -1,4 +1,6 @@
-import { CHAINS, type Dinner, type Offer, type ShoppingList } from '@dinner/shared';
+import { CHAINS } from './chains.js';
+import type { Offer } from './offer.js';
+import type { Dinner, ShoppingList } from './plan.js';
 
 /** Groups offer ingredients by store and sums everything else, so the household can shop per chain. */
 export function buildShoppingList(dinners: Dinner[], offers: Map<string, Offer>): ShoppingList {

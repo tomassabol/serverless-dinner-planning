@@ -22,6 +22,8 @@ describe('NutritionDb.search', () => {
     ['cod', 'Cod, fillet, raw'],
     ['rice', 'Rice, polished, raw'],
     ['pasta', 'Pasta, raw'],
+    ['penne pasta', 'Pasta, raw'],
+    ['fusilli', 'Pasta, raw'],
     ['potatoes', 'Potato, raw'],
     ['broccoli', 'Broccoli, raw'],
     ['eggs', /^Eggs, chicken, .*raw/],

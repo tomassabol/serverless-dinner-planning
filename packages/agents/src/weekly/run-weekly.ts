@@ -14,8 +14,9 @@ import {
   type Nutrition,
   type Offer,
   type Preferences,
+  checkPlan,
+  hasBlocking,
 } from '@dinner/shared';
-import { checkPlan, hasBlocking } from '../checks.js';
 import { callTool } from '../gateway.js';
 import { JUDGE_SYSTEM_PROMPT, PLANNER_SYSTEM_PROMPT, judgeTask, plannerTask, revisionFeedback, type WeekContext } from './prompts.js';
 

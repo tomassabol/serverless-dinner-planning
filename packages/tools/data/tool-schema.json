@@ -27,7 +27,7 @@
         },
         "week": {
           "type": "string",
-          "description": "Which ISO week to search: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+          "description": "Which ISO week: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
         },
         "validOn": {
           "type": "string",
@@ -202,6 +202,169 @@
         "weeks": {
           "type": "integer",
           "description": "How many weeks back to look. Defaults to 8."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_plan",
+    "description": "Get the household's stored dinner plan for a week: every dinner with ingredients, recipe steps, nutrition per serving and photo, plus the shopping list grouped by store.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "week": {
+          "type": "string",
+          "description": "Which ISO week: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+        }
+      }
+    }
+  },
+  {
+    "name": "replace_dinner",
+    "description": "Replace (or add) one dinner in the stored plan. Checks allergies, recomputes nutrition and the shopping list, updates the meal history and generates a new photo in the background. Only call this when the user asks for a change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "week": {
+          "type": "string",
+          "description": "Which ISO week: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the dinner to replace or add, YYYY-MM-DD, within the week."
+        },
+        "dinner": {
+          "type": "object",
+          "description": "The new dinner. Same rules as the weekly plan: plain English ingredient names, raw grams for all servings, offerId from search_offers or null.",
+          "properties": {
+            "dish": {
+              "type": "string",
+              "description": "Short dish name, e.g. \"Lemon-garlic salmon with roast potatoes\"."
+            },
+            "description": {
+              "type": "string",
+              "description": "One or two appetising sentences."
+            },
+            "cuisine": {
+              "type": "string",
+              "description": "e.g. \"Danish\", \"Italian\", \"Thai\"."
+            },
+            "mainProtein": {
+              "type": "string",
+              "description": "Main protein in plain English, e.g. \"salmon\", \"chicken\", \"lentils\"."
+            },
+            "cookingMinutes": {
+              "type": "integer"
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Plain English ingredient name, e.g. \"chicken breast\", \"rice\", \"olive oil\"."
+                  },
+                  "grams": {
+                    "type": "number",
+                    "description": "Raw weight in grams for the whole recipe (all servings)."
+                  },
+                  "offerId": {
+                    "type": "string",
+                    "description": "Id of the supermarket offer this ingredient is bought from, or null. May be null."
+                  }
+                },
+                "required": [
+                  "name",
+                  "grams",
+                  "offerId"
+                ]
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Short recipe steps.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "estimatedCostDkk": {
+              "type": "number",
+              "description": "Estimated cost of all ingredients in DKK."
+            }
+          },
+          "required": [
+            "dish",
+            "description",
+            "cuisine",
+            "mainProtein",
+            "cookingMinutes",
+            "ingredients",
+            "steps",
+            "estimatedCostDkk"
+          ]
+        }
+      },
+      "required": [
+        "date",
+        "dinner"
+      ]
+    }
+  },
+  {
+    "name": "remove_dinner",
+    "description": "Remove one dinner from the stored plan and update the shopping list. Only call this when the user asks.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "week": {
+          "type": "string",
+          "description": "Which ISO week: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the dinner to remove, YYYY-MM-DD."
+        }
+      },
+      "required": [
+        "date"
+      ]
+    }
+  },
+  {
+    "name": "rate_meal",
+    "description": "Record whether the household liked a dinner they had. Use when the user gives feedback about a meal.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date of the dinner, YYYY-MM-DD."
+        },
+        "rating": {
+          "type": "string",
+          "description": "\"up\" if they liked it, \"down\" if they did not. Thumbs-down dishes are never planned again. One of: up, down."
+        }
+      },
+      "required": [
+        "date",
+        "rating"
+      ]
+    }
+  },
+  {
+    "name": "replan_week",
+    "description": "Start a completely new weekly plan in the background with the current offers (no new offer fetch). Takes about 3-5 minutes; the household gets the new plan by email. Only call this when the user explicitly wants a fresh plan.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "week": {
+          "type": "string",
+          "description": "Which ISO week: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why the household wants a new plan, for the log."
         }
       }
     }

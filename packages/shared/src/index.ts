@@ -15,3 +15,5 @@ export * from './offer.js';
 export * from './week.js';
 export * from './household.js';
 export * from './plan.js';
+export * from './checks.js';
+export * from './shopping.js';

@@ -11,6 +11,7 @@ packages/ingest/  Daily offer ingest: Tjek → S3 raw + DynamoDB + week snapshot
 packages/tools/   AgentCore Gateway tools (offers, Frida nutrition, preferences, meal history) and the request interceptor
 packages/agents/  Strands agents on AgentCore Runtime: weekly planner + judge loop with code-only plan checks
 packages/workflow/ Step Functions tasks: run the planner, save plan + shopping list, meal photos, SES email
+packages/api/     Web API: streaming chat Lambda (API Gateway REST + Cognito) and conversation/plan endpoints
 scripts/          Operational scripts
 ```
 
@@ -67,6 +68,16 @@ Preview the plan email for a plan JSON file (from `pnpm --filter @dinner/agents 
 
 ```bash
 AWS_PROFILE=tomassabol pnpm --filter @dinner/workflow preview-email plan.json preview.html
+```
+
+Chat with the agent locally (deployed Gateway, Memory and Bedrock), or through the deployed streaming Lambda:
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/agents chat-local conv-$(uuidgen | tr 'A-Z' 'a-z') "What's for dinner on Wednesday?"
+```
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/api invoke-chat "What's for dinner on Wednesday?"
 ```
 
 Run the deployed ingest by hand (it also runs daily at 05:00 Copenhagen time):
