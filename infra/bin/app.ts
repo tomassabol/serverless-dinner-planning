@@ -4,6 +4,7 @@ import { isStage, STAGES } from '@dinner/shared';
 import { getStageConfig, REGION, TAGS } from '../lib/config';
 import { AuthStack } from '../lib/stacks/auth-stack';
 import { DataStack } from '../lib/stacks/data-stack';
+import { GatewayStack } from '../lib/stacks/gateway-stack';
 import { IngestStack } from '../lib/stacks/ingest-stack';
 import { MonitoringStack } from '../lib/stacks/monitoring-stack';
 
@@ -37,4 +38,11 @@ new IngestStack(app, `${config.prefix}-ingest`, {
   table: data.table,
   bucket: data.bucket,
   alertTopic: monitoring.alertTopic,
+});
+
+new GatewayStack(app, `${config.prefix}-gateway`, {
+  env,
+  config,
+  table: data.table,
+  bucket: data.bucket,
 });

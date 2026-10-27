@@ -77,7 +77,7 @@ Learned while building Phase 1:
 
 ### Auth & multi-user
 14. **Cognito user pool, self-signup off, 2 users in a `household`.** Key plans and preferences on `householdId`, so both of you see the same plan. Allergies and dislikes stay per person.
-15. **Security: tool Lambdas must take `householdId` from the verified JWT or identity context, never from model-supplied arguments.** Otherwise a prompt injection (for example from offer text) could read or write another household's data. Use Gateway inbound auth: the Cognito JWT for chat, and the Cognito client-credentials (M2M) flow for the scheduled run.
+15. **Security: tool Lambdas take `householdId` only from a trusted source, never from model-supplied arguments.** Otherwise a prompt injection (for example from offer text) could read or write another household's data. *Implemented in Phase 2:* the Gateway uses `AWS_IAM` auth, so only the agent runtimes' roles can call it. Each runtime sends `X-Dinner-Household-Id` (from the Step Functions input, or from the chat user's Cognito claims) and `X-Dinner-Caller` (`weekly` or `chat`). A REQUEST interceptor writes the household into the tool arguments, overwriting any model value, and blocks write tools (`update_preferences`) unless the caller is `chat`. This replaced the Cognito machine-to-machine plan, which costs about $6/month per app client.
 
 ### Memory
 16. **AgentCore Memory:** short-term memory for chat sessions; long-term memory with user-preference and semantic strategies for soft taste signals ("we liked the Thai curry").
@@ -157,7 +157,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 |---|---|---|
 | **0. Foundations** | pnpm monorepo, CDK bootstrap in eu-west-1, tags/stage, Cognito pool with 2 users, AWS Budget alarm, CloudWatch Transaction Search (AgentCore Observability prerequisite) | `cdk deploy --all` works and resources are tagged |
 | **1. Offer ingestion** | Tjek adapter, normalization, Haiku tagging, S3 + DDB, daily schedule | a week of normalized food offers for all target chains in S3 |
-| **2. Tools + Gateway** | Tools Lambda(s), Frida nutrition import, AgentCore Gateway with Cognito M2M auth | the tools can be called via the Gateway MCP endpoint from a local script |
+| **2. Tools + Gateway** | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
 | **3. Planner + Judge** | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
 | **4. Weekly workflow** | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
 | **5. Chat agent** | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |

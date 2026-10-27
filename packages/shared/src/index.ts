@@ -13,3 +13,4 @@ export const HOUSEHOLD_ATTRIBUTE = 'custom:householdId';
 export * from './chains.js';
 export * from './offer.js';
 export * from './week.js';
+export * from './household.js';

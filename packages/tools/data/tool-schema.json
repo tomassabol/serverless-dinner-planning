@@ -1,0 +1,209 @@
+[
+  {
+    "name": "search_offers",
+    "description": "Search this week's or next week's supermarket offers (Netto, Lidl, REMA 1000, føtex, Bilka, 365discount, SuperBrugsen, Brugsen, Kvickly, SPAR, MENY). Returns price, price per kg/l/piece, validity dates and an ingredient tag. \"everydayPrice\" marks permanent low prices rather than weekly deals.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Ingredient or product to look for, in English or Danish (e.g. \"salmon\", \"kyllingebryst\"). Omit to browse."
+        },
+        "categories": {
+          "type": "array",
+          "description": "Only return offers in these categories.",
+          "items": {
+            "type": "string",
+            "description": "One of: meat, poultry, fish, vegetarian_protein, vegetables, fruit, carbs, dairy, pantry, ready_meal, snacks, beverages, non_food."
+          }
+        },
+        "chains": {
+          "type": "array",
+          "description": "Only return offers from these chains.",
+          "items": {
+            "type": "string",
+            "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris."
+          }
+        },
+        "week": {
+          "type": "string",
+          "description": "Which ISO week to search: \"current\", \"next\" or an ISO week like \"2026-W45\". Defaults to \"current\"."
+        },
+        "validOn": {
+          "type": "string",
+          "description": "Only offers valid on this date (YYYY-MM-DD, Danish time)."
+        },
+        "dinnerRelevantOnly": {
+          "type": "boolean",
+          "description": "Skip snacks, drinks and other non-dinner items. Defaults to true."
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Maximum number of offers to return. Defaults to 20."
+        }
+      }
+    }
+  },
+  {
+    "name": "get_offer",
+    "description": "Get full details of one offer, including its product image URL.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "offerId": {
+          "type": "string",
+          "description": "Offer id as returned by search_offers."
+        }
+      },
+      "required": [
+        "offerId"
+      ]
+    }
+  },
+  {
+    "name": "nutrition_lookup",
+    "description": "Compute nutrition for a recipe from the Danish Frida food database. Pass every ingredient with its raw weight; returns per-ingredient matches and totals (kcal, protein, fat, saturated fat, carbs, sugars, fiber, salt). Check \"unmatched\" and low-confidence matches.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "description": "Every ingredient of one recipe with its raw weight.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ingredient": {
+                "type": "string",
+                "description": "Plain English ingredient name, e.g. \"chicken breast\", \"rice\", \"olive oil\"."
+              },
+              "grams": {
+                "type": "number",
+                "description": "Raw weight in grams for the whole recipe."
+              }
+            },
+            "required": [
+              "ingredient",
+              "grams"
+            ]
+          }
+        }
+      },
+      "required": [
+        "items"
+      ]
+    }
+  },
+  {
+    "name": "get_preferences",
+    "description": "Get the household's members with allergies, dislikes, likes and diets, plus planning settings (dinners per week, servings, cooking time, preferred chains, budget).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "update_preferences",
+    "description": "Change the household's preferences: allergies, dislikes, likes or diet for a member, planning settings, or household notes. Only call this when the user explicitly asks for a change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "member": {
+          "type": "string",
+          "description": "Household member the change applies to (first name). Required for allergies, dislikes, likes and diet."
+        },
+        "addAllergies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removeAllergies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "addDislikes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removeDislikes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "addLikes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removeLikes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "diet": {
+          "type": "string",
+          "description": "Diet description such as \"pescetarian\"; null clears it. May be null."
+        },
+        "settings": {
+          "type": "object",
+          "description": "Planning settings to change.",
+          "properties": {
+            "dinnersPerWeek": {
+              "type": "integer"
+            },
+            "servings": {
+              "type": "integer"
+            },
+            "maxWeekdayCookingMinutes": {
+              "type": "integer"
+            },
+            "preferredChains": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris."
+              }
+            },
+            "weeklyBudgetDkk": {
+              "type": "number",
+              "description": "May be null."
+            }
+          }
+        },
+        "addNotes": {
+          "type": "array",
+          "description": "Household-wide notes, e.g. \"We cook bigger portions on Sundays\".",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removeNotes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "get_meal_history",
+    "description": "List recently planned or cooked dinners with ratings, to avoid repeating dishes and main proteins.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "weeks": {
+          "type": "integer",
+          "description": "How many weeks back to look. Defaults to 8."
+        }
+      }
+    }
+  }
+]
