@@ -6,3 +6,6 @@ cdk.out/
 .env.*
 .DS_Store
 .adot-cache/
+apps/web/public/config.json
+apps/web/.dev-api
+apps/web/public/preview/

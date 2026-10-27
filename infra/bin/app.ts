@@ -53,7 +53,23 @@ const gateway = new GatewayStack(app, `${config.prefix}-gateway`, {
 
 const agents = new AgentsStack(app, `${config.prefix}-agents`, { env, config, gateway: gateway.gateway });
 
-const cdn = new CdnStack(app, `${config.prefix}-cdn`, { env, config });
+const api = new ApiStack(app, `${config.prefix}-api`, {
+  env,
+  config,
+  table: data.table,
+  userPool: auth.userPool,
+  chatRuntime: agents.chatRuntime,
+  memory: agents.memory,
+  devOrigins: ['http://localhost:5173'],
+});
+
+const cdn = new CdnStack(app, `${config.prefix}-cdn`, {
+  env,
+  config,
+  api: api.api,
+  userPool: auth.userPool,
+  webClient: auth.webClient,
+});
 
 const alertEmail: string = app.node.tryGetContext('alertEmail');
 new WorkflowStack(app, `${config.prefix}-workflow`, {
@@ -68,14 +84,4 @@ new WorkflowStack(app, `${config.prefix}-workflow`, {
   alertTopic: monitoring.alertTopic,
   senderEmail: app.node.tryGetContext('senderEmail') ?? alertEmail,
   verifiedRecipients: app.node.tryGetContext('householdEmails') ?? [],
-});
-
-new ApiStack(app, `${config.prefix}-api`, {
-  env,
-  config,
-  table: data.table,
-  userPool: auth.userPool,
-  chatRuntime: agents.chatRuntime,
-  memory: agents.memory,
-  devOrigins: ['http://localhost:5173'],
 });

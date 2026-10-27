@@ -51,11 +51,11 @@ export class ApiStack extends Stack {
       config,
       serviceName: 'api',
       entry: 'packages/api/src/api.ts',
-      description: 'Conversations and plans for the web app',
+      description: 'Conversations, plans and meal ratings for the web app',
       timeout: Duration.seconds(15),
       environment: { TABLE_NAME: table.tableName, MEMORY_ID: memory.attrMemoryId },
     });
-    table.grantReadData(apiFn);
+    table.grantReadWriteData(apiFn);
     apiFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:ListEvents'], resources: [memory.attrMemoryArn] }));
 
     const accessLogs = new logs.LogGroup(this, 'AccessLogs', {
@@ -103,6 +103,7 @@ export class ApiStack extends Stack {
     conversations.addMethod('GET', api, auth);
     conversations.addResource('{id}').addMethod('GET', api, auth);
     this.api.root.addResource('plans').addResource('{week}').addMethod('GET', api, auth);
+    this.api.root.addResource('meals').addResource('{date}').addResource('rating').addMethod('POST', api, auth);
 
     new ssm.StringParameter(this, 'ApiUrlParam', { parameterName: `/${config.prefix}/api/url`, stringValue: this.api.url });
     new CfnOutput(this, 'ApiUrl', { value: this.api.url });

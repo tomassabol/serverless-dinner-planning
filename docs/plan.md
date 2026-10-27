@@ -161,7 +161,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 | **3. Planner + Judge** ✅ | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
 | **4. Weekly workflow** ✅ | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
 | **5. Chat agent** ✅ | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
-| **6. Web app** | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
+| **6. Web app** ✅ | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
 | **7. Hardening** | Observability dashboards and alarms tuned on real runs, cost per run metric, Tjek fallback, prompt caching tuning | about a month of unattended Sundays |
 
 ### Phase 3 notes
@@ -186,6 +186,21 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
   - The conversation index (`CONV#…`) also acts as the ownership check for reading messages.
 - **Cycle avoidance:** the Gateway tools reach the Workflow stack's state machine and image Lambda through ARNs built from names, not CloudFormation references.
 - **Lessons:** the model can't be trusted to map weekdays to dates, so the system prompt lists every date with its day name and `get_plan` returns day names. `@fastify/sse` JSON-encodes `data`, so the runtime yields objects rather than strings.
+
+### Phase 6 notes
+- **One CloudFront distribution, all same-origin:**
+  - `/` serves the React app from the web bucket.
+  - `/images/*` serves the media bucket, so existing image URLs keep working.
+  - `/api/*` goes to API Gateway. A CloudFront Function strips the prefix, caching is disabled, all viewer headers except Host are forwarded, and the origin read timeout is 60 s. The chat Lambda sends SSE keep-alive comments every 15 s, and only between complete frames.
+  - The response headers policy sets the CSP (`connect-src` is self plus Cognito), HSTS, frame-deny and nosniff.
+- **App:** Vite + React 19, using only Amplify's Auth part.
+  - Sign-in handles the new-password challenge on first login and saves `given_name`, which the chat uses as the speaker's name.
+  - The Cognito ID token is sent to the API, because the authorizer reads `custom:householdId` from it.
+  - The shopping list remembers ticked items per week in `localStorage`.
+  - `config.json` is written at deploy time with `Source.jsonData`, and the app is built by CDK local bundling.
+- **New endpoint:** `POST /meals/{date}/rating`. `GET /plans/{week}` now includes each dinner's rating.
+- **Dev preview** (`/?preview`, Vite dev server only) renders the signed-in UI from real plan JSON with a simulated chat stream, so the UI can be checked without credentials.
+- **Not yet verified:** a real Cognito sign-in and an authenticated chat through CloudFront → API Gateway streaming. The first real login is that test.
 
 ### Open decisions
 1. Tjek ToS: ask for permission, or accept the personal-use risk?

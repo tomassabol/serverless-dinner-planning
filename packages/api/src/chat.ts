@@ -4,8 +4,6 @@
  * Body: { message, conversationId? }. The first event is `{ type: "conversation", id }`.
  */
 import { randomUUID } from 'node:crypto';
-import { pipeline } from 'node:stream/promises';
-import { Readable } from 'node:stream';
 import { BedrockAgentCoreClient, InvokeAgentRuntimeCommand } from '@aws-sdk/client-bedrock-agentcore';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
@@ -26,6 +24,7 @@ const BodySchema = z.object({
   conversationId: z.string().regex(/^conv-[0-9a-f-]{36}$/).optional(),
 });
 
+const KEEP_ALIVE_MS = 15_000;
 const sse = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
 
 export const handler = awslambda.streamifyResponse(async (event: APIGatewayProxyEvent, responseStream) => {
@@ -69,7 +68,27 @@ export const handler = awslambda.streamifyResponse(async (event: APIGatewayProxy
     headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-conversation-id': conversationId },
   });
   stream.write(sse({ type: 'conversation', id: conversationId }));
-  // The runtime already emits SSE frames; pass them through unchanged.
-  await pipeline(response.response as unknown as Readable, stream);
+  // The runtime already emits SSE frames; pass them through unchanged. While it is quiet (long tool
+  // calls), SSE comments keep CloudFront's origin read timeout from firing. They are only written
+  // between complete frames, never inside one that arrived split across chunks.
+  let lastWrite = Date.now();
+  let atFrameBoundary = true;
+  const keepAlive = setInterval(() => {
+    if (atFrameBoundary && Date.now() - lastWrite >= KEEP_ALIVE_MS) {
+      stream.write(': keep-alive\n\n');
+      lastWrite = Date.now();
+    }
+  }, 1_000);
+  try {
+    for await (const chunk of response.response as unknown as AsyncIterable<Uint8Array>) {
+      const text = Buffer.from(chunk).toString('utf8');
+      stream.write(chunk);
+      lastWrite = Date.now();
+      atFrameBoundary = text.endsWith('\n\n');
+    }
+  } finally {
+    clearInterval(keepAlive);
+    stream.end();
+  }
   logger.info('Chat turn streamed', { householdId: caller.householdId, conversationId });
 });

@@ -11,7 +11,8 @@ packages/ingest/  Daily offer ingest: Tjek → S3 raw + DynamoDB + week snapshot
 packages/tools/   AgentCore Gateway tools (offers, Frida nutrition, preferences, meal history) and the request interceptor
 packages/agents/  Strands agents on AgentCore Runtime: weekly planner + judge loop with code-only plan checks
 packages/workflow/ Step Functions tasks: run the planner, save plan + shopping list, meal photos, SES email
-packages/api/     Web API: streaming chat Lambda (API Gateway REST + Cognito) and conversation/plan endpoints
+packages/api/     Web API: streaming chat Lambda (API Gateway REST + Cognito) and conversation/plan/rating endpoints
+apps/web/         React app (Vite): plan view with shopping list and ratings, streaming chat with history
 scripts/          Operational scripts
 ```
 
@@ -80,6 +81,18 @@ AWS_PROFILE=tomassabol pnpm --filter @dinner/agents chat-local conv-$(uuidgen | 
 AWS_PROFILE=tomassabol pnpm --filter @dinner/api invoke-chat "What's for dinner on Wednesday?"
 ```
 
+The web app is served at https://d2ivvz1qrl3ljv.cloudfront.net (app, `/images/*` and `/api/*` share one CloudFront distribution and deploy with `dinner-prod-cdn`). To run it locally against the deployed backend:
+
+```bash
+AWS_PROFILE=tomassabol pnpm --filter @dinner/web dev-config
+```
+
+```bash
+pnpm --filter @dinner/web dev
+```
+
+Open http://localhost:5173, or http://localhost:5173/?preview to see the signed-in UI with real plan data and a simulated chat, without Cognito (dev server only; stripped from production builds).
+
 Run the deployed ingest by hand (it also runs daily at 05:00 Copenhagen time):
 
 ```bash
@@ -102,7 +115,7 @@ There is a single stage, `prod` (the default `stage` context). Every resource is
 
 ## After the first deploy
 
-1. Create the household members (Cognito emails each person a temporary password):
+1. Create the household members (Cognito emails each person a temporary password, valid for 7 days; the first sign-in in the web app asks for a new password and a first name):
    ```bash
    scripts/create-user.sh you@example.com [given-name]
    ```
