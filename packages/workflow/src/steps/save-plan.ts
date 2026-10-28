@@ -1,23 +1,13 @@
-/** Step Functions task: stores the plan with its shopping list and syncs the meal history. */
+/** Workflow step: stores the plan with its shopping list and syncs the meal history. */
 import { BatchGetCommand } from '@aws-sdk/lib-dynamodb';
-import {
-  MealPlanSchema,
-  OfferSchema,
-  type Offer,
-  type StoredPlan,
-  buildShoppingList,
-} from '@dinner/shared';
-import { z } from 'zod';
+import { OfferSchema, type MealPlan, type Offer, type StoredPlan, buildShoppingList } from '@dinner/shared';
 import { ddb, env, logger } from '../clients.js';
 import { PlanRepo } from '../plans.js';
 
 const { TABLE_NAME } = env('TABLE_NAME');
 const plans = new PlanRepo(ddb, TABLE_NAME);
 
-const InputSchema = z.object({ plan: MealPlanSchema, executionId: z.string() });
-
-export const handler = async (event: unknown) => {
-  const { plan, executionId } = InputSchema.parse(event);
+export async function savePlan(plan: MealPlan, executionId: string) {
   const offers = await loadOffers(plan.dinners.flatMap((d) => d.ingredients.map((i) => i.offerId)));
 
   const stored: StoredPlan = {
@@ -32,13 +22,13 @@ export const handler = async (event: unknown) => {
   await plans.syncMealHistory(stored);
   logger.info('Plan saved', { householdId: plan.householdId, week: plan.week, offers: offers.size });
 
-  // Only what the image step needs travels on through the state machine.
+  // Only what the image step needs is checkpointed.
   return {
     householdId: plan.householdId,
     week: plan.week,
     dinners: plan.dinners.map(({ date, dish, description, cuisine }) => ({ date, dish, description, cuisine })),
   };
-};
+}
 
 async function loadOffers(ids: (string | null)[]): Promise<Map<string, Offer>> {
   const unique = [...new Set(ids.filter((id): id is string => !!id))];

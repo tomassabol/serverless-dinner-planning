@@ -1,5 +1,5 @@
 /**
- * Invokes the deployed weekly runtime, like Step Functions will.
+ * Invokes the deployed weekly runtime, like the weekly workflow does.
  * Usage: AWS_PROFILE=tomassabol pnpm --filter @dinner/agents invoke [week] [out.json]
  */
 import { execFileSync } from 'node:child_process';

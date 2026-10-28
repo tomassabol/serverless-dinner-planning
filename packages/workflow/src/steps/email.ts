@@ -1,8 +1,7 @@
-/** Step Functions task: emails the stored plan to every verified member of the household. */
+/** Workflow step: emails the stored plan to every verified member of the household. */
 import { CognitoIdentityProviderClient, paginateListUsers } from '@aws-sdk/client-cognito-identity-provider';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import { HOUSEHOLD_ATTRIBUTE, HouseholdIdSchema } from '@dinner/shared';
-import { z } from 'zod';
+import { HOUSEHOLD_ATTRIBUTE } from '@dinner/shared';
 import { ddb, env, logger, tracer } from '../clients.js';
 import { renderPlanEmail } from '../email/render.js';
 import { PlanRepo } from '../plans.js';
@@ -12,10 +11,7 @@ const plans = new PlanRepo(ddb, TABLE_NAME);
 const cognito = tracer.captureAWSv3Client(new CognitoIdentityProviderClient({}));
 const ses = tracer.captureAWSv3Client(new SESv2Client({}));
 
-const InputSchema = z.object({ householdId: HouseholdIdSchema, week: z.string() });
-
-export const handler = async (event: unknown) => {
-  const { householdId, week } = InputSchema.parse(event);
+export async function sendPlanEmail(householdId: string, week: string) {
   const plan = await plans.get(householdId, week);
   if (!plan) throw new Error(`No stored plan for ${householdId} ${week}`);
 
@@ -36,8 +32,8 @@ export const handler = async (event: unknown) => {
     }),
   );
   logger.info('Plan email sent', { householdId, week, recipients: recipients.length });
-  return { householdId, week, recipients: recipients.length };
-};
+  return recipients.length;
+}
 
 /** Cognito cannot filter on custom attributes, so the (tiny) pool is listed and filtered here. */
 async function householdEmails(householdId: string): Promise<string[]> {

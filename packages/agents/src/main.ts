@@ -1,5 +1,5 @@
 /**
- * AgentCore Runtime entry point for the weekly planner. Invoked with IAM (Step Functions / CLI),
+ * AgentCore Runtime entry point for the weekly planner. Invoked with IAM (weekly workflow / CLI),
  * so the householdId in the payload is trusted; it is forwarded to the Gateway as a header.
  */
 import { BedrockAgentCoreApp } from 'bedrock-agentcore/runtime';

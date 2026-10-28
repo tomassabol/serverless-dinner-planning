@@ -2,7 +2,7 @@
  * AgentCore Gateway REQUEST interceptor.
  *
  * The Gateway uses AWS_IAM auth, so only our agent runtimes can call it. They pass the household
- * (taken from Step Functions input or the user's Cognito claims) in `X-Dinner-Household-Id` and
+ * (taken from the weekly workflow input or the user's Cognito claims) in `X-Dinner-Household-Id` and
  * their role in `X-Dinner-Caller`. This interceptor copies the household into the tool arguments,
  * overwriting anything the model supplied, and blocks write tools for non-chat callers.
  */

@@ -10,7 +10,7 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import type { Construct } from 'constructs';
 import type { StageConfig } from '../config';
 import { NodeFunction, REPO_ROOT } from '../constructs/node-function';
-import { weeklyPlanStateMachineName } from './workflow-stack';
+import { weeklyPlanFunctionName } from './workflow-stack';
 
 export interface GatewayStackProps extends StackProps {
   config: StageConfig;
@@ -27,7 +27,7 @@ export class GatewayStack extends Stack {
   constructor(scope: Construct, id: string, props: GatewayStackProps) {
     super(scope, id, props);
     const { config, table, bucket } = props;
-    const weeklyPlanArn = `arn:${this.partition}:states:${this.region}:${this.account}:stateMachine:${weeklyPlanStateMachineName(config)}`;
+    const weeklyPlanFunction = weeklyPlanFunctionName(config);
     const imageFunctionName = `${config.prefix}-workflow-image`;
 
     const toolsFn = new NodeFunction(this, 'ToolsFunction', {
@@ -40,7 +40,7 @@ export class GatewayStack extends Stack {
       environment: {
         TABLE_NAME: table.tableName,
         BUCKET_NAME: bucket.bucketName,
-        STATE_MACHINE_ARN: weeklyPlanArn,
+        WEEKLY_PLAN_FUNCTION: weeklyPlanFunction,
         IMAGE_FUNCTION_NAME: imageFunctionName,
       },
       bundling: { loader: { '.json': 'json' } },
@@ -49,11 +49,12 @@ export class GatewayStack extends Stack {
     bucket.grantRead(toolsFn, 'snapshots/*');
     // Chat tools start re-plans and request meal photos from the Workflow stack. The ARNs are built
     // from names, because a CloudFormation reference would make Gateway -> Agents -> Workflow a cycle.
-    toolsFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['states:StartExecution'], resources: [weeklyPlanArn] }));
     toolsFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],
-        resources: [`arn:${this.partition}:lambda:${this.region}:${this.account}:function:${imageFunctionName}`],
+        resources: [imageFunctionName, weeklyPlanFunction].map(
+          (name) => `arn:${this.partition}:lambda:${this.region}:${this.account}:function:${name}`,
+        ),
       }),
     );
 

@@ -10,7 +10,7 @@ packages/shared/  Shared types, Zod schemas, chain list, week helpers
 packages/ingest/  Daily offer ingest: Tjek → S3 raw + DynamoDB + week snapshots
 packages/tools/   AgentCore Gateway tools (offers, Frida nutrition, preferences, meal history) and the request interceptor
 packages/agents/  Strands agents on AgentCore Runtime: weekly planner + judge loop with code-only plan checks
-packages/workflow/ Step Functions tasks: run the planner, save plan + shopping list, meal photos, SES email
+packages/workflow/ Durable weekly workflow Lambda: run the planner, save plan + shopping list, meal photos, SES email
 packages/api/     Web API: streaming chat Lambda (API Gateway REST + Cognito) and conversation/plan/rating endpoints
 apps/web/         React app (Vite): plan view with shopping list and ratings, streaming chat with history
 scripts/          Operational scripts
@@ -62,7 +62,7 @@ AWS_PROFILE=tomassabol pnpm --filter @dinner/agents invoke next
 Start the weekly workflow by hand (it also runs every Sunday at 17:00 Copenhagen time). `skipFetch` skips the offer refresh, `sendEmail: false` skips the email:
 
 ```bash
-aws stepfunctions start-execution --state-machine-arn arn:aws:states:eu-west-1:849368888067:stateMachine:dinner-prod-weekly-plan --input '{"householdId":"home","week":"next"}' --profile tomassabol --region eu-west-1
+aws lambda invoke --function-name dinner-prod-workflow-weekly-plan:live --invocation-type Event --cli-binary-format raw-in-base64-out --payload '{"householdId":"home","week":"next"}' --profile tomassabol --region eu-west-1 /dev/null
 ```
 
 Preview the plan email for a plan JSON file (from `pnpm --filter @dinner/agents invoke next plan.json`):

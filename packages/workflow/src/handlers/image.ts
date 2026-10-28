@@ -1,4 +1,4 @@
-/** Step Functions Map task: generates (or reuses) a photo for one dinner and returns its public URL. */
+/** Generates (or reuses) a photo for one dinner and returns its public URL. Called by the weekly workflow and chat edits. */
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { HeadObjectCommand, NotFound, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { HouseholdIdSchema } from '@dinner/shared';

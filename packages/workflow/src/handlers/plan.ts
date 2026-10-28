@@ -1,4 +1,4 @@
-/** Step Functions task: runs the weekly planner/judge runtime and returns the validated plan. */
+/** Weekly workflow task (chained invoke): runs the weekly planner/judge runtime and returns the validated plan. */
 import { BedrockAgentCoreClient, InvokeAgentRuntimeCommand } from '@aws-sdk/client-bedrock-agentcore';
 import { HouseholdIdSchema, MealPlanSchema } from '@dinner/shared';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ const client = tracer.captureAWSv3Client(
 const InputSchema = z.object({
   householdId: HouseholdIdSchema,
   week: z.string().default('next'),
-  /** Step Functions execution name; reused as the AgentCore session id so traces line up. */
+  /** Durable execution name; reused as the AgentCore session id so traces line up. */
   executionName: z.string(),
 });
 

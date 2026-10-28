@@ -67,7 +67,7 @@ Learned while building Phase 1:
 8. **The judge sees only the plan and the context**, never the planner's reasoning, so it doesn't just rubber-stamp it. Use Zod schemas and structured output for both `MealPlan` and `JudgeVerdict`.
 9. **Nutrition comes from a database, not from the LLM.** LLMs make up macros. Ingest DTU's **Frida** Danish food composition database (open data) and expose a `nutrition_lookup(ingredient, grams)` tool. The planner gives ingredients in grams and the code adds them up.
 10. **Models in eu-west-1 use the `eu.` cross-region inference profiles.** Check availability with `aws bedrock list-inference-profiles --region eu-west-1 --profile tomassabol`. Sonnet for the planner, which makes many tool calls. Sonnet or Opus for the judge. Haiku for ingest tagging. **As of 2026-10-27 this account can call Haiku 4.5 and Sonnet 4.6, but not the Claude 5 family (Haiku/Sonnet/Opus 5.x return AccessDenied).** Request access before Phase 3, or use Sonnet 4.6. Use prompt caching on the system prompt and the offers context.
-11. **Side effects stay outside the agent.** The agent returns a validated plan as JSON. Step Functions then saves it, generates images and sends the email. Retries become deterministic and the agent can't send twice.
+11. **Side effects stay outside the agent.** The agent returns a validated plan as JSON. The workflow (a Lambda durable function) then saves it, generates images and sends the email. Retries become deterministic and the agent can't send twice.
 
 ### Images
 12. Tjek images show *products*, not meals. Generate one image per meal with a Bedrock image model and store it in S3 behind CloudFront, via an image model available in eu-west-1 (verify first). Scraping recipe-site photos has copyright problems. As a cheap fallback, show the main offer's product image.
@@ -77,7 +77,7 @@ Learned while building Phase 1:
 
 ### Auth & multi-user
 14. **Cognito user pool, self-signup off, 2 users in a `household`.** Key plans and preferences on `householdId`, so both of you see the same plan. Allergies and dislikes stay per person.
-15. **Security: tool Lambdas take `householdId` only from a trusted source, never from model-supplied arguments.** Otherwise a prompt injection (for example from offer text) could read or write another household's data. *Implemented in Phase 2:* the Gateway uses `AWS_IAM` auth, so only the agent runtimes' roles can call it. Each runtime sends `X-Dinner-Household-Id` (from the Step Functions input, or from the chat user's Cognito claims) and `X-Dinner-Caller` (`weekly` or `chat`). A REQUEST interceptor writes the household into the tool arguments, overwriting any model value, and blocks write tools (`update_preferences`) unless the caller is `chat`. This replaced the Cognito machine-to-machine plan, which costs about $6/month per app client.
+15. **Security: tool Lambdas take `householdId` only from a trusted source, never from model-supplied arguments.** Otherwise a prompt injection (for example from offer text) could read or write another household's data. *Implemented in Phase 2:* the Gateway uses `AWS_IAM` auth, so only the agent runtimes' roles can call it. Each runtime sends `X-Dinner-Household-Id` (from the workflow input, or from the chat user's Cognito claims) and `X-Dinner-Caller` (`weekly` or `chat`). A REQUEST interceptor writes the household into the tool arguments, overwriting any model value, and blocks write tools (`update_preferences`) unless the caller is `chat`. This replaced the Cognito machine-to-machine plan, which costs about $6/month per app client.
 
 ### Memory
 16. **AgentCore Memory:** short-term memory for chat sessions; long-term memory with user-preference and semantic strategies for soft taste signals ("we liked the Thai curry").
@@ -88,7 +88,7 @@ Learned while building Phase 1:
 19. Browser → CloudFront (`/api/*` behavior, same origin so no CORS) → **API Gateway REST API with response streaming** (Lambda proxy integration, `responseTransferMode: STREAM`) + **Cognito user pool authorizer** → chat Lambda (`awslambda.streamifyResponse`) → `InvokeAgentRuntime` (streaming) → SSE chunks back to the browser.
     - The Cognito authorizer validates the JWT before the Lambda runs. The Lambda reads `householdId` / `sub` from `requestContext.authorizer.claims` and passes them to the runtime as the session's identity, never as model input.
     - Also gives you throttling/usage plans, access logs and WAF if ever needed.
-    - Check streaming limits (integration timeout, payload/bandwidth after the first MBs) against a long agent turn; keep chat turns short and push long work (re-planning) to Step Functions.
+    - Check streaming limits (integration timeout, payload/bandwidth after the first MBs) against a long agent turn; keep chat turns short and push long work (re-planning) to the weekly workflow.
     - Non-streaming routes on the same API: `GET /plans/{week}`, `GET /conversations`, `POST /meals/{date}/rating`.
 20. "Start the weekly flow again" becomes a tool that calls `StartExecution` on the planning state machine with `{ skipFetch: true, reason }`, and returns at once. The UI polls the plan status, or you get the email.
 
@@ -106,15 +106,15 @@ Learned while building Phase 1:
 ```
 EventBridge Scheduler (Europe/Copenhagen)
  ├─ daily 05:00 ─► Ingest Lambda ─► Tjek API ─► S3 raw ─► normalize + Haiku tag ─► S3 week.json + DDB Offers
- └─ Sun 17:00 ─► Step Functions "WeeklyPlan"
+ └─ Sun 17:00 ─► Durable Lambda "weekly-plan"
                    1. (optional) ensure ingest is fresh
                    2. InvokeAgentRuntime: Planner⇄Judge (max 3 rounds) ──► AgentCore Gateway ──► Tools Lambda(s)
                    3. Validate plan (Zod) ─► DDB Plans + History                               ├ search_offers
-                   4. Map: generate meal images ─► S3/CloudFront                               ├ nutrition_lookup (Frida)
+                   4. map: generate meal images ─► S3/CloudFront                               ├ nutrition_lookup (Frida)
                    5. SES HTML email (plan + shopping list + link)                             ├ get_history / get_preferences
                                                                                                ├ get_plan / update_plan_day
 React (Vite) on S3 + CloudFront ─► API GW REST /api/chat (streaming, Cognito authorizer)        ├ update_preferences
-                                     └► Chat Lambda ─► InvokeAgentRuntime: Chat agent ─► Gateway └ trigger_replan (→ SFN)
+                                     └► Chat Lambda ─► InvokeAgentRuntime: Chat agent ─► Gateway └ trigger_replan (→ workflow)
 Cognito user pool (household group), AgentCore Memory (STM + LTM), AgentCore Observability → CloudWatch
 ```
 
@@ -128,7 +128,7 @@ Cognito user pool (household group), AgentCore Memory (STM + LTM), AgentCore Obs
 ### Observability (AgentCore Observability, required for every agent)
 - **Account prerequisite (Phase 0, Monitoring stack):** CloudWatch Transaction Search is enabled. X-Ray spans go to the `aws/spans` log group, which the CloudWatch GenAI Observability → Bedrock AgentCore views read.
 - **Runtimes (planner-judge, chat):** the agent containers start with ADOT/OpenTelemetry auto-instrumentation (Node `--require @aws/aws-distro-opentelemetry-node-autoinstrumentation/register`, `OTEL_*` env vars). Strands' built-in OTel spans then show agent loops, model calls (tokens, latency) and tool calls. The runtime role gets the X-Ray and CloudWatch Logs permissions.
-- **Session and trace correlation:** every invocation passes a `runtimeSessionId` (the chat conversation id, or `weekly-<isoWeek>-<executionId>`), so a Step Functions execution, its agent session and its Gateway tool calls can be followed together. Add span attributes for `household.id`, `plan.week` and `judge.iteration`/`judge.score`.
+- **Session and trace correlation:** every invocation passes a `runtimeSessionId` (the chat conversation id, or `weekly-<isoWeek>-<executionId>`), so a durable execution, its agent session and its Gateway tool calls can be followed together. Add span attributes for `household.id`, `plan.week` and `judge.iteration`/`judge.score`.
 - **Gateway and Memory:** turn on log and trace delivery for the Gateway and the Memory resource (CloudWatch Logs + X-Ray destinations) in CDK.
 - **Tool Lambdas, ingest and chat Lambda:** active X-Ray tracing and Powertools for TypeScript (logger, tracer, metrics), so their spans join the same trace.
 - **Custom metrics (EMF):** judge iterations per run, final judge score, tokens and estimated cost per run, offers ingested per chain. Alarms: weekly run failed or did not run, judge cap reached, ingest returned 0 offers for a chain.
@@ -143,7 +143,7 @@ packages/shared/       Zod schemas (Offer, MealPlan, JudgeVerdict, Preferences),
 packages/ingest/       Tjek OfferSource adapter, normalizer, tagger
 packages/tools/        Gateway tool Lambdas
 packages/agents/       planner-judge runtime + chat runtime (Strands TS, Express, /ping + /invocations, arm64)
-packages/workflow/     Step Functions task Lambdas (images, email)
+packages/workflow/     Durable weekly workflow Lambda plus its planner and image task Lambdas
 apps/web/              React + Vite chat UI (Amplify Auth lib for Cognito only)
 ```
 
@@ -159,7 +159,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 | **1. Offer ingestion** ✅ | Tjek adapter, normalization, Haiku tagging, S3 + DDB, daily schedule | a week of normalized food offers for all target chains in S3 |
 | **2. Tools + Gateway** ✅ | Tools Lambda, Frida nutrition import, AgentCore Gateway (AWS_IAM auth + household-injecting interceptor) | the tools can be called via the Gateway MCP endpoint from a local script |
 | **3. Planner + Judge** ✅ | Strands TS runtime with ADOT instrumentation, deterministic checks, judge loop, Zod output; first run locally, then on AgentCore | a valid 5–7 day plan from fixture offers; a small eval set (allergy, repetition, budget) passes |
-| **4. Weekly workflow** ✅ | Step Functions, images, SES email, plan + history persistence | a Sunday run produces the email end to end |
+| **4. Weekly workflow** ✅ | Workflow (Step Functions, later a Lambda durable function), images, SES email, plan + history persistence | a Sunday run produces the email end to end |
 | **5. Chat agent** ✅ | Chat runtime, AgentCore Memory (STM/LTM), preference tools, `trigger_replan`, API Gateway (streaming) + chat Lambda | you can change Wednesday's meal and add an allergy via chat |
 | **6. Web app** ✅ | React chat with history sidebar, plan view, 👍/👎, login | it runs on CloudFront behind Cognito |
 | **7. Hardening** | Observability dashboards and alarms tuned on real runs, cost per run metric, Tjek fallback, prompt caching tuning | about a month of unattended Sundays |
@@ -171,7 +171,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 - **Strands MCP tool filters** match strings exactly, and regex filters are anchored at the start of the name. Use full names like `dinner-tools___search_offers`.
 
 ### Phase 4 notes
-- **Workflow:** EventBridge Scheduler (Sunday 17:00, Europe/Copenhagen) starts the `dinner-prod-weekly-plan` state machine. Its steps: apply defaults → refresh offers (unless `skipFetch`) → plan Lambda (`InvokeAgentRuntime`) → save the plan, shopping list and meal history → Map: one photo per dinner (a failed image becomes `null`) → attach images → send email (unless `sendEmail: false`). Alarms fire on failed or timed-out executions.
+- **Workflow:** EventBridge Scheduler (Sunday 17:00, Europe/Copenhagen) invokes the `dinner-prod-workflow-weekly-plan:live` durable function asynchronously (it replaced the original Step Functions state machine). Its steps: refresh offers (unless `skipFetch`) → plan Lambda (`InvokeAgentRuntime`) → save the plan, shopping list and meal history → map: one photo per dinner, max 3 at once (retried once, then a `null` URL) → attach images → send email (unless `sendEmail: false`, never retried). The ingest, plan and image Lambdas are chained `context.invoke` calls, so the orchestrator is suspended while they run; the rest are checkpointed steps. Executions start through the `live` alias, so each one is pinned to the version it started on. Alarms fire on `DurableExecutionFailed` and `DurableExecutionTimedOut`.
 - **Images:** no text-to-image model is offered in the EU regions. Stability Stable Image Core in **us-west-2** is used instead, at about $0.04 per image. Photos are stored at `images/<household>/<week>/<date>-<dish>.jpg`, so unchanged dinners reuse their photo when a week is re-planned. They're served by CloudFront (`CdnStack`), which Phase 6 will extend with the web app as its default behavior.
 - **Email:** SES is in sandbox mode, using verified email identities. `tomassabol.com` DNS is hosted at Vercel, so domain DKIM would need three CNAME records added there. That would improve deliverability and is an optional follow-up.
 - **Plan quality:** on a Tuesday most chains haven't published next week's flyer yet, so the planner falls back on Lidl's everyday prices. A minor check now flags dinners with no real deal. The Sunday run sees far more offers.
@@ -184,7 +184,7 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
   - `POST /chat` streams through API Gateway response streaming to a `streamifyResponse` Lambda, then to `InvokeAgentRuntime`. The integration timeout is 10 minutes.
   - `GET /conversations`, `GET /conversations/{id}` and `GET /plans/{week}` are buffered.
   - The conversation index (`CONV#…`) also acts as the ownership check for reading messages.
-- **Cycle avoidance:** the Gateway tools reach the Workflow stack's state machine and image Lambda through ARNs built from names, not CloudFormation references.
+- **Cycle avoidance:** the Gateway tools reach the Workflow stack's weekly-plan alias and image Lambda through ARNs built from names, not CloudFormation references.
 - **Lessons:** the model can't be trusted to map weekdays to dates, so the system prompt lists every date with its day name and `get_plan` returns day names. `@fastify/sse` JSON-encodes `data`, so the runtime yields objects rather than strings.
 
 ### Phase 6 notes

@@ -1,7 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { BatchGetCommand, DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
@@ -21,7 +20,8 @@ const env = z
   .object({
     TABLE_NAME: z.string(),
     BUCKET_NAME: z.string(),
-    STATE_MACHINE_ARN: z.string(),
+    /** Qualified (alias) name: durable functions can't be invoked unqualified. */
+    WEEKLY_PLAN_FUNCTION: z.string(),
     IMAGE_FUNCTION_NAME: z.string(),
   })
   .parse(process.env);
@@ -40,7 +40,6 @@ const preferences = new PreferencesRepo(ddb, env.TABLE_NAME);
 const history = new MealHistoryRepo(ddb, env.TABLE_NAME);
 const plans = new PlanRepo(ddb, env.TABLE_NAME);
 const lambda = tracer.captureAWSv3Client(new LambdaClient({}));
-const sfn = tracer.captureAWSv3Client(new SFNClient({}));
 
 /** Set by the Gateway request interceptor from a trusted header; never by the model. */
 const Injected = z.object({ householdId: HouseholdIdSchema });
@@ -148,14 +147,15 @@ async function run(toolName: ToolName, householdId: string, input: unknown) {
     case 'replan_week': {
       const { week, reason } = TOOLS.replan_week.input.parse(input);
       const weekKey = resolveWeekKey(week, new Date());
-      const execution = await sfn.send(
-        new StartExecutionCommand({
-          stateMachineArn: env.STATE_MACHINE_ARN,
-          name: `chat-${weekKey}-${Date.now()}`,
-          input: JSON.stringify({ householdId, week: weekKey, skipFetch: true }),
+      const execution = await lambda.send(
+        new InvokeCommand({
+          FunctionName: env.WEEKLY_PLAN_FUNCTION,
+          InvocationType: 'Event',
+          DurableExecutionName: `chat-${weekKey}-${Date.now()}`,
+          Payload: JSON.stringify({ householdId, week: weekKey, skipFetch: true }),
         }),
       );
-      logger.info('Re-plan started', { householdId, weekKey, reason, executionArn: execution.executionArn });
+      logger.info('Re-plan started', { householdId, weekKey, reason, executionArn: execution.DurableExecutionArn });
       return { started: true, week: weekKey, message: 'A new plan is being made; it arrives by email in about 3-5 minutes.' };
     }
   }
