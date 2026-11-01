@@ -1,6 +1,6 @@
 # Serverless Dinner Planner
 
-Weekly dinner plans built from Danish supermarket offers, with Strands agents on Bedrock AgentCore. See [docs/plan.md](docs/plan.md) for the architecture and roadmap.
+Weekly dinner plans built from Danish supermarket offers, with Strands agents on Bedrock AgentCore and Claude via the Claude API. See [docs/plan.md](docs/plan.md) for the architecture and roadmap.
 
 ## Layout
 
@@ -20,6 +20,11 @@ scripts/          Operational scripts
 
 - Node 24 (`.nvmrc`), pnpm 11
 - AWS profile `tomassabol`, region `eu-west-1` (CDK already bootstrapped)
+- `ANTHROPIC_API_KEY` in the repo's `.env` (local scripts load it from there). Deployed code reads it from Secrets Manager; after the first deploy of `dinner-prod-data`, and whenever the key changes, copy it there:
+
+```bash
+scripts/put-anthropic-key.sh
+```
 
 ## Commands
 
@@ -29,7 +34,7 @@ pnpm build && pnpm typecheck
 pnpm -r test
 ```
 
-Fetch and normalize offers locally without writing to AWS (`--tag` also classifies a sample with Bedrock):
+Fetch and normalize offers locally without writing to AWS (`--tag` also classifies a sample with Claude):
 
 ```bash
 AWS_PROFILE=tomassabol pnpm --filter @dinner/ingest dry-run --tag netto
@@ -47,7 +52,7 @@ After changing a tool's Zod input, regenerate the Gateway schema (a test fails i
 pnpm --filter @dinner/tools gen:schema
 ```
 
-Run the weekly planner/judge loop locally against the deployed Gateway and Bedrock:
+Run the weekly planner/judge loop locally against the deployed Gateway and the Claude API:
 
 ```bash
 AWS_PROFILE=tomassabol pnpm --filter @dinner/agents plan-local next
@@ -71,7 +76,7 @@ Preview the plan email for a plan JSON file (from `pnpm --filter @dinner/agents 
 AWS_PROFILE=tomassabol pnpm --filter @dinner/workflow preview-email plan.json preview.html
 ```
 
-Chat with the agent locally (deployed Gateway, Memory and Bedrock), or through the deployed streaming Lambda:
+Chat with the agent locally (deployed Gateway and Memory, Claude API), or through the deployed streaming Lambda:
 
 ```bash
 AWS_PROFILE=tomassabol pnpm --filter @dinner/agents chat-local conv-$(uuidgen | tr 'A-Z' 'a-z') "What's for dinner on Wednesday?"

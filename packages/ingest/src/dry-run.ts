@@ -1,9 +1,9 @@
 /**
  * Fetches and normalizes offers locally without writing to AWS.
  * Usage: pnpm --filter @dinner/ingest dry-run [--tag] [chainId ...]
- * --tag classifies a 40-offer sample per chain with Bedrock (uses AWS_PROFILE).
+ * --tag classifies a 40-offer sample per chain with Claude (ANTHROPIC_API_KEY from the repo's .env).
  */
-import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import Anthropic from '@anthropic-ai/sdk';
 import { CHAINS, DEFAULT_CHAINS, type ChainId, type Offer } from '@dinner/shared';
 import { TjekOfferSource } from './sources/tjek.js';
 import { OfferTagger } from './tagger.js';
@@ -13,10 +13,8 @@ const tag = args.includes('--tag');
 const requested = args.filter((a) => !a.startsWith('--')) as ChainId[];
 const chains = requested.length ? CHAINS.filter((c) => requested.includes(c.id)) : DEFAULT_CHAINS;
 const source = new TjekOfferSource();
-const tagger = new OfferTagger(
-  new BedrockRuntimeClient({ region: 'eu-west-1' }),
-  process.env.TAG_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
-  (error) => console.error('Tagging failed', error),
+const tagger = new OfferTagger(new Anthropic(), process.env.TAG_MODEL_ID ?? 'claude-haiku-4-5', (error) =>
+  console.error('Tagging failed', error),
 );
 
 for (const chain of chains) {

@@ -1,6 +1,7 @@
-import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import Anthropic from '@anthropic-ai/sdk';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { MetricUnit, Metrics } from '@aws-lambda-powertools/metrics';
@@ -18,6 +19,7 @@ const env = z
     TABLE_NAME: z.string(),
     BUCKET_NAME: z.string(),
     TAG_MODEL_ID: z.string(),
+    ANTHROPIC_API_KEY_SECRET_ARN: z.string(),
   })
   .parse(process.env);
 
@@ -29,7 +31,9 @@ const ddb = DynamoDBDocumentClient.from(tracer.captureAWSv3Client(new DynamoDBCl
   marshallOptions: { removeUndefinedValues: true },
 });
 const s3 = tracer.captureAWSv3Client(new S3Client({}));
-const bedrock = tracer.captureAWSv3Client(new BedrockRuntimeClient({}));
+const secrets = tracer.captureAWSv3Client(new SecretsManagerClient({}));
+const { SecretString: apiKey } = await secrets.send(new GetSecretValueCommand({ SecretId: env.ANTHROPIC_API_KEY_SECRET_ARN }));
+const anthropic = new Anthropic({ apiKey });
 
 const EventSchema = z
   .object({
@@ -46,7 +50,7 @@ export const handler = async (event: unknown, context: Context) => {
     {
       source: new TjekOfferSource(),
       store: new OfferStore(ddb, s3, env.TABLE_NAME, env.BUCKET_NAME),
-      tagger: new OfferTagger(bedrock, env.TAG_MODEL_ID, (error, offerIds) =>
+      tagger: new OfferTagger(anthropic, env.TAG_MODEL_ID, (error, offerIds) =>
         logger.warn('Tagging batch failed', { error, offers: offerIds.length }),
       ),
       log: (message, data) => logger.info(message, data ?? {}),

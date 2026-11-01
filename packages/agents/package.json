@@ -6,14 +6,16 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "plan-local": "tsx scripts/plan-local.ts",
+    "plan-local": "tsx --env-file-if-exists=../../.env scripts/plan-local.ts",
     "package-runtime": "tsx scripts/package-runtime.ts",
     "invoke": "tsx scripts/invoke-runtime.ts",
-    "chat-local": "tsx scripts/chat-local.ts"
+    "chat-local": "tsx --env-file-if-exists=../../.env scripts/chat-local.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.1",
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/client-bedrock-agentcore": "^3.1156.0",
+    "@aws-sdk/client-secrets-manager": "^3.1156.0",
     "@aws-sdk/credential-providers": "^3.1156.0",
     "@date-fns/tz": "^1.5.0",
     "@dinner/shared": "workspace:*",

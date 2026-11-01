@@ -1,6 +1,7 @@
 import { Duration, Stack, type StackProps } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type { Construct } from 'constructs';
 import type { StageConfig } from '../config';
 
@@ -11,6 +12,7 @@ export interface DataStackProps extends StackProps {
 export class DataStack extends Stack {
   readonly table: dynamodb.TableV2;
   readonly bucket: s3.Bucket;
+  readonly anthropicApiKey: secretsmanager.Secret;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -45,6 +47,14 @@ export class DataStack extends Stack {
         { id: 'expire-raw', prefix: 'raw/', expiration: Duration.days(90) },
         { id: 'expire-snapshots', prefix: 'snapshots/', expiration: Duration.days(365) },
       ],
+    });
+
+    // Claude API key for the tagger and agents. CDK creates a random placeholder; the real value is set
+    // out of band with scripts/put-anthropic-key.sh so it never appears in a template.
+    this.anthropicApiKey = new secretsmanager.Secret(this, 'AnthropicApiKey', {
+      secretName: `${config.prefix}/anthropic-api-key`,
+      description: 'Anthropic API key used by the offer tagger and the agents',
+      removalPolicy: config.removalPolicy,
     });
   }
 }

@@ -4,13 +4,10 @@ import { PROJECT_NAME, type Stage } from '@dinner/shared';
 export const REGION = 'eu-west-1';
 
 /** Small, cheap model used to classify offers at ingest time. */
-export const TAG_MODEL_ID = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
+export const TAG_MODEL_ID = 'claude-haiku-4-5';
 
-/**
- * Planner and judge model. Claude 5.x is not enabled for this account yet (2026-10-27);
- * switch to e.g. eu.anthropic.claude-sonnet-5-5 once Bedrock access is granted.
- */
-export const AGENT_MODEL_ID = 'eu.anthropic.claude-sonnet-4-6';
+/** Planner, judge and chat model (Claude API). */
+export const AGENT_MODEL_ID = 'claude-sonnet-4-6';
 
 export interface StageConfig {
   stage: Stage;

@@ -1,6 +1,8 @@
 import { BedrockAgentCoreClient } from '@aws-sdk/client-bedrock-agentcore';
-import { Agent, BedrockModel, MemoryManager, type McpClient } from '@strands-agents/sdk';
+import { Agent, MemoryManager, type McpClient } from '@strands-agents/sdk';
+import { AnthropicModel } from '@strands-agents/sdk/models/anthropic';
 import { createAgentCoreMemoryStores } from 'bedrock-agentcore/memory/strands';
+import { anthropicApiKey } from '../anthropic.js';
 import { chatSystemPrompt } from './prompts.js';
 import { loadTurns, toMessages } from './history.js';
 
@@ -59,7 +61,7 @@ export async function* runChat(
 
   const agent = new Agent({
     name: 'chat',
-    model: new BedrockModel({ modelId: config.modelId, region: config.region, maxTokens: 8_000, cacheConfig: { strategy: 'auto' } }),
+    model: new AnthropicModel({ modelId: config.modelId, apiKey: await anthropicApiKey(), maxTokens: 8_000, cacheConfig: { strategy: 'auto' } }),
     systemPrompt: chatSystemPrompt({ userName: request.userName, now: new Date() }),
     messages: history,
     tools: [gateway],

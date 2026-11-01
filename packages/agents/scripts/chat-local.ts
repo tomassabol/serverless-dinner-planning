@@ -1,5 +1,5 @@
 /**
- * Sends one chat message through the chat agent locally (deployed Gateway, Memory and Bedrock).
+ * Sends one chat message through the chat agent locally (deployed Gateway and Memory, Claude API key from the repo's .env).
  * Usage: AWS_PROFILE=tomassabol pnpm --filter @dinner/agents chat-local <conversationId> "<message>" [userName]
  */
 import { execFileSync } from 'node:child_process';
@@ -16,7 +16,7 @@ const param = (name: string) =>
   }).trim();
 
 const gateway = createGatewayClient({ url: param('/dinner-prod/gateway/url'), region, householdId: 'home', caller: 'chat' });
-const config = { region, modelId: 'eu.anthropic.claude-sonnet-4-6', memoryId: param('/dinner-prod/agents/memory-id') };
+const config = { region, modelId: 'claude-sonnet-4-6', memoryId: param('/dinner-prod/agents/memory-id') };
 try {
   for await (const event of runChat({ householdId: 'home', userName, conversationId, message }, config, gateway)) {
     if (event.type === 'text') process.stdout.write(event.delta);

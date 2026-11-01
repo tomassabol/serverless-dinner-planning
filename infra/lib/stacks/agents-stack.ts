@@ -4,6 +4,7 @@ import { AssetHashType, CfnOutput, DockerImage, Stack, type StackProps } from 'a
 import * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
+import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import type { Construct } from 'constructs';
 import { AGENT_MODEL_ID, type StageConfig } from '../config';
@@ -12,6 +13,7 @@ import { REPO_ROOT } from '../constructs/node-function';
 export interface AgentsStackProps extends StackProps {
   config: StageConfig;
   gateway: agentcore.CfnGateway;
+  anthropicApiKey: secretsmanager.ISecret;
 }
 
 export class AgentsStack extends Stack {
@@ -21,7 +23,7 @@ export class AgentsStack extends Stack {
 
   constructor(scope: Construct, id: string, props: AgentsStackProps) {
     super(scope, id, props);
-    const { config, gateway } = props;
+    const { config, gateway, anthropicApiKey } = props;
     const agentsDir = path.join(REPO_ROOT, 'packages/agents');
 
     // Direct code deployment: esbuild CommonJS bundles (main.js, chat.js) plus vendored ADOT, built by package-runtime.ts.
@@ -76,6 +78,7 @@ export class AgentsStack extends Stack {
       config,
       code,
       gateway,
+      anthropicApiKey,
       entry: 'main.js',
       description: 'Weekly dinner planner (planner + judge agents)',
       environment: { PLANNER_MODEL_ID: AGENT_MODEL_ID, JUDGE_MODEL_ID: AGENT_MODEL_ID },
@@ -85,6 +88,7 @@ export class AgentsStack extends Stack {
       config,
       code,
       gateway,
+      anthropicApiKey,
       entry: 'chat.js',
       description: 'Household dinner chat agent',
       environment: { CHAT_MODEL_ID: AGENT_MODEL_ID, MEMORY_ID: this.memory.attrMemoryId },
@@ -121,13 +125,14 @@ export class AgentsStack extends Stack {
       config: StageConfig;
       code: s3assets.Asset;
       gateway: agentcore.CfnGateway;
+      anthropicApiKey: secretsmanager.ISecret;
       entry: string;
       description: string;
       environment: Record<string, string>;
       policies?: iam.PolicyStatement[];
     },
   ): agentcore.CfnRuntime {
-    const { config, code, gateway } = opts;
+    const { config, code, gateway, anthropicApiKey } = opts;
     const runtimeName = `${config.prefix}-${id.toLowerCase()}`.replace(/-/g, '_');
 
     const role = new iam.Role(this, `${id}RuntimeRole`, {
@@ -140,16 +145,9 @@ export class AgentsStack extends Stack {
       }),
     });
     code.grantRead(role);
+    anthropicApiKey.grantRead(role);
 
-    const modelName = AGENT_MODEL_ID.replace(/^eu\./, '');
     const statements = [
-      new iam.PolicyStatement({
-        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-        resources: [
-          `arn:${this.partition}:bedrock:${this.region}:${this.account}:inference-profile/${AGENT_MODEL_ID}`,
-          `arn:${this.partition}:bedrock:*::foundation-model/${modelName}`,
-        ],
-      }),
       new iam.PolicyStatement({ actions: ['bedrock-agentcore:InvokeGateway'], resources: [gateway.attrGatewayArn] }),
       // AgentCore Observability: runtime logs, ADOT traces and metrics.
       new iam.PolicyStatement({
@@ -188,6 +186,7 @@ export class AgentsStack extends Stack {
       lifecycleConfiguration: { idleRuntimeSessionTimeout: 300, maxLifetime: 3600 },
       environmentVariables: {
         GATEWAY_URL: gateway.attrGatewayUrl,
+        ANTHROPIC_API_KEY_SECRET_ARN: anthropicApiKey.secretArn,
         AGENT_OBSERVABILITY_ENABLED: 'true',
         OTEL_RESOURCE_ATTRIBUTES: `service.name=${runtimeName},deployment.environment=${config.stage}`,
         ...opts.environment,

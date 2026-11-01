@@ -41,6 +41,7 @@ const ingest = new IngestStack(app, `${config.prefix}-ingest`, {
   config,
   table: data.table,
   bucket: data.bucket,
+  anthropicApiKey: data.anthropicApiKey,
   alertTopic: monitoring.alertTopic,
 });
 
@@ -51,7 +52,12 @@ const gateway = new GatewayStack(app, `${config.prefix}-gateway`, {
   bucket: data.bucket,
 });
 
-const agents = new AgentsStack(app, `${config.prefix}-agents`, { env, config, gateway: gateway.gateway });
+const agents = new AgentsStack(app, `${config.prefix}-agents`, {
+  env,
+  config,
+  gateway: gateway.gateway,
+  anthropicApiKey: data.anthropicApiKey,
+});
 
 const api = new ApiStack(app, `${config.prefix}-api`, {
   env,

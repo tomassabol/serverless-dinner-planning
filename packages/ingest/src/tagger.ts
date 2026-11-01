@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, ConverseCommand, type Tool } from '@aws-sdk/client-bedrock-runtime';
+import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { OFFER_CATEGORIES, OfferCategorySchema, type Offer, type OfferTags } from '@dinner/shared';
 
@@ -29,31 +29,27 @@ const TagBatchSchema = z.object({
   ),
 });
 
-const RECORD_TAGS_TOOL: Tool = {
-  toolSpec: {
-    name: 'record_tags',
-    description: 'Record the classification of each offer.',
-    inputSchema: {
-      json: {
-        type: 'object',
-        properties: {
-          tags: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                category: { type: 'string', enum: [...OFFER_CATEGORIES] },
-                canonicalIngredient: { type: 'string' },
-                dinnerRelevant: { type: 'boolean' },
-              },
-              required: ['id', 'category', 'canonicalIngredient', 'dinnerRelevant'],
-            },
+const RECORD_TAGS_TOOL: Anthropic.Tool = {
+  name: 'record_tags',
+  description: 'Record the classification of each offer.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      tags: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            category: { type: 'string', enum: [...OFFER_CATEGORIES] },
+            canonicalIngredient: { type: 'string' },
+            dinnerRelevant: { type: 'boolean' },
           },
+          required: ['id', 'category', 'canonicalIngredient', 'dinnerRelevant'],
         },
-        required: ['tags'],
       },
     },
+    required: ['tags'],
   },
 };
 
@@ -66,7 +62,7 @@ export interface TaggerResult {
 
 export class OfferTagger {
   constructor(
-    private readonly client: BedrockRuntimeClient,
+    private readonly client: Anthropic,
     private readonly modelId: string,
     private readonly onError: (error: unknown, offerIds: string[]) => void = () => {},
   ) {}
@@ -98,20 +94,19 @@ export class OfferTagger {
       return `${o.id} | ${o.heading} | ${description}`;
     });
 
-    const response = await this.client.send(
-      new ConverseCommand({
-        modelId: this.modelId,
-        system: [{ text: SYSTEM_PROMPT }],
-        messages: [{ role: 'user', content: [{ text: `Offers (id | heading | description):\n${lines.join('\n')}` }] }],
-        toolConfig: { tools: [RECORD_TAGS_TOOL], toolChoice: { tool: { name: 'record_tags' } } },
-        inferenceConfig: { maxTokens: 8000, temperature: 0 },
-      }),
-    );
+    const response = await this.client.messages.create({
+      model: this.modelId,
+      max_tokens: 8000,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Offers (id | heading | description):\n${lines.join('\n')}` }],
+      tools: [RECORD_TAGS_TOOL],
+      tool_choice: { type: 'tool', name: 'record_tags' },
+    });
 
-    result.inputTokens += response.usage?.inputTokens ?? 0;
-    result.outputTokens += response.usage?.outputTokens ?? 0;
+    result.inputTokens += response.usage.input_tokens;
+    result.outputTokens += response.usage.output_tokens;
 
-    const toolUse = response.output?.message?.content?.find((c) => c.toolUse)?.toolUse;
+    const toolUse = response.content.find((c) => c.type === 'tool_use');
     const parsed = TagBatchSchema.parse(toolUse?.input);
     const ids = new Set(batch.map((o) => o.id));
     const taggedAt = new Date().toISOString();

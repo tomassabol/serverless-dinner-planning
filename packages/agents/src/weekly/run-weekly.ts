@@ -1,4 +1,5 @@
-import { Agent, BedrockModel, type AgentResult, type McpClient } from '@strands-agents/sdk';
+import { Agent, type AgentResult, type McpClient } from '@strands-agents/sdk';
+import { AnthropicModel } from '@strands-agents/sdk/models/anthropic';
 import {
   JudgeVerdictSchema,
   MealPlanDraftSchema,
@@ -17,6 +18,7 @@ import {
   checkPlan,
   hasBlocking,
 } from '@dinner/shared';
+import { anthropicApiKey } from '../anthropic.js';
 import { callTool } from '../gateway.js';
 import { JUDGE_SYSTEM_PROMPT, PLANNER_SYSTEM_PROMPT, judgeTask, plannerTask, revisionFeedback, type WeekContext } from './prompts.js';
 
@@ -70,10 +72,11 @@ export async function runWeekly(
   const history = meals.filter((m) => m.date < dates[0]!);
   const ctx: WeekContext = { weekKey, dates, preferences, history };
   const traceAttributes = { 'household.id': request.householdId, 'plan.week': weekKey };
+  const apiKey = await anthropicApiKey();
 
   const planner = new Agent({
     name: 'planner',
-    model: new BedrockModel({ modelId: config.plannerModelId, region: config.region, maxTokens: 16_000, cacheConfig: { strategy: 'auto' } }),
+    model: new AnthropicModel({ modelId: config.plannerModelId, apiKey, maxTokens: 16_000, cacheConfig: { strategy: 'auto' } }),
     systemPrompt: PLANNER_SYSTEM_PROMPT,
     tools: [gateway],
     printer: false,
@@ -118,7 +121,7 @@ export async function runWeekly(
     } else {
       const judge = new Agent({
         name: 'judge',
-        model: new BedrockModel({ modelId: config.judgeModelId, region: config.region, maxTokens: 4_000 }),
+        model: new AnthropicModel({ modelId: config.judgeModelId, apiKey, maxTokens: 4_000 }),
         systemPrompt: JUDGE_SYSTEM_PROMPT,
         printer: false,
         traceAttributes: { ...traceAttributes, 'judge.round': round },

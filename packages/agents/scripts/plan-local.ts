@@ -1,5 +1,5 @@
 /**
- * Runs the weekly planner/judge loop locally against the deployed Gateway and Bedrock.
+ * Runs the weekly planner/judge loop locally against the deployed Gateway (Claude API key from the repo's .env).
  * Usage: AWS_PROFILE=tomassabol pnpm --filter @dinner/agents plan-local [week] [out.json]
  */
 import { execFileSync } from 'node:child_process';

@@ -14,7 +14,7 @@ const env = z
     AWS_REGION: z.string().default('eu-west-1'),
     GATEWAY_URL: z.string().url(),
     MEMORY_ID: z.string(),
-    CHAT_MODEL_ID: z.string().default('eu.anthropic.claude-sonnet-4-6'),
+    CHAT_MODEL_ID: z.string().default('claude-sonnet-4-6'),
   })
   .parse(process.env);
 

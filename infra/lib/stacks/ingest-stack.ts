@@ -2,8 +2,8 @@ import { Duration, Stack, TimeZone, type StackProps } from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
+import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import * as targets from 'aws-cdk-lib/aws-scheduler-targets';
 import type * as sns from 'aws-cdk-lib/aws-sns';
@@ -15,6 +15,7 @@ export interface IngestStackProps extends StackProps {
   config: StageConfig;
   table: dynamodb.ITableV2;
   bucket: s3.IBucket;
+  anthropicApiKey: secretsmanager.ISecret;
   alertTopic: sns.ITopic;
 }
 
@@ -23,13 +24,13 @@ export class IngestStack extends Stack {
 
   constructor(scope: Construct, id: string, props: IngestStackProps) {
     super(scope, id, props);
-    const { config, table, bucket, alertTopic } = props;
+    const { config, table, bucket, anthropicApiKey, alertTopic } = props;
 
     const fn = (this.fn = new NodeFunction(this, 'IngestFunction', {
       config,
       serviceName: 'ingest',
       entry: 'packages/ingest/src/handler.ts',
-      description: 'Fetches weekly offers from Tjek, tags them with Bedrock and writes week snapshots',
+      description: 'Fetches weekly offers from Tjek, tags them with Claude and writes week snapshots',
       memorySize: 1024,
       timeout: Duration.minutes(10),
       retryAttempts: 1,
@@ -37,23 +38,14 @@ export class IngestStack extends Stack {
         TABLE_NAME: table.tableName,
         BUCKET_NAME: bucket.bucketName,
         TAG_MODEL_ID,
+        ANTHROPIC_API_KEY_SECRET_ARN: anthropicApiKey.secretArn,
       },
     }));
 
     table.grantReadWriteData(fn);
     bucket.grantReadWrite(fn);
 
-    // A cross-region inference profile routes to the model in any EU region.
-    const modelName = TAG_MODEL_ID.replace(/^eu\./, '');
-    fn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['bedrock:InvokeModel'],
-        resources: [
-          `arn:${this.partition}:bedrock:${this.region}:${this.account}:inference-profile/${TAG_MODEL_ID}`,
-          `arn:${this.partition}:bedrock:*::foundation-model/${modelName}`,
-        ],
-      }),
-    );
+    anthropicApiKey.grantRead(fn);
 
     new scheduler.Schedule(this, 'DailySchedule', {
       scheduleName: `${config.prefix}-ingest-daily`,
