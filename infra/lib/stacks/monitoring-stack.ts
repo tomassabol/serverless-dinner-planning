@@ -32,6 +32,19 @@ export class MonitoringStack extends Stack {
       enforceSSL: true,
     });
     this.alertTopic.addSubscription(new subscriptions.EmailSubscription(alertEmail));
+    // enforceSSL replaces the default topic policy, which is what let CloudWatch alarms publish.
+    this.alertTopic.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudWatchAlarms',
+        principals: [new iam.ServicePrincipal('cloudwatch.amazonaws.com')],
+        actions: ['sns:Publish'],
+        resources: [this.alertTopic.topicArn],
+        conditions: {
+          StringEquals: { 'aws:SourceAccount': this.account },
+          ArnLike: { 'aws:SourceArn': `arn:${this.partition}:cloudwatch:${this.region}:${this.account}:alarm:*` },
+        },
+      }),
+    );
 
     const subscribers = [{ subscriptionType: 'EMAIL', address: alertEmail }];
     const notification = (threshold: number, notificationType: 'ACTUAL' | 'FORECASTED') => ({

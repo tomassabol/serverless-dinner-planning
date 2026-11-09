@@ -30,11 +30,15 @@ const app = new BedrockAgentCoreApp({
         caller: 'weekly',
         toolFilters: WEEKLY_TOOL_FILTER,
       });
+      // A synchronous invocation alone leaves /ping at "Healthy", and AgentCore ends sessions that stay
+      // "Healthy" past idleRuntimeSessionTimeout, mid-request. Tracking the run reports "HealthyBusy".
+      const taskId = app.addAsyncTask('plan_week', { householdId: request.householdId });
       try {
         const plan = await runWeekly(request, config, gateway, (message, data) => log.info(data ?? {}, message));
         log.info({ status: plan.status, score: plan.verdict.score, rounds: plan.rounds, usage: plan.usage }, 'Plan ready');
         return { plan };
       } finally {
+        app.completeAsyncTask(taskId);
         await gateway.disconnect();
       }
     },

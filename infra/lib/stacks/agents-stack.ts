@@ -82,6 +82,8 @@ export class AgentsStack extends Stack {
       entry: 'main.js',
       description: 'Weekly dinner planner (planner + judge agents)',
       environment: { PLANNER_MODEL_ID: AGENT_MODEL_ID, JUDGE_MODEL_ID: AGENT_MODEL_ID },
+      // Backstop for the HealthyBusy ping in main.ts: a plan run (up to 3 planner/judge rounds) can exceed 5 minutes.
+      idleTimeoutSeconds: 900,
     });
 
     this.chatRuntime = this.runtime('Chat', {
@@ -130,6 +132,8 @@ export class AgentsStack extends Stack {
       description: string;
       environment: Record<string, string>;
       policies?: iam.PolicyStatement[];
+      /** Seconds a session may report "Healthy" (not busy) before AgentCore ends it. */
+      idleTimeoutSeconds?: number;
     },
   ): agentcore.CfnRuntime {
     const { config, code, gateway, anthropicApiKey } = opts;
@@ -183,7 +187,7 @@ export class AgentsStack extends Stack {
         },
       },
       networkConfiguration: { networkMode: 'PUBLIC' },
-      lifecycleConfiguration: { idleRuntimeSessionTimeout: 300, maxLifetime: 3600 },
+      lifecycleConfiguration: { idleRuntimeSessionTimeout: opts.idleTimeoutSeconds ?? 300, maxLifetime: 3600 },
       environmentVariables: {
         GATEWAY_URL: gateway.attrGatewayUrl,
         ANTHROPIC_API_KEY_SECRET_ARN: anthropicApiKey.secretArn,
