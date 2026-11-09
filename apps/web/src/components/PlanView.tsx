@@ -2,11 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPlan, rateMeal, type Plan, type Rating } from '../api';
 import { DinnerCard } from './DinnerCard';
 import { ShoppingList } from './ShoppingList';
-import { dkk, todayInCopenhagen, weekNumber, weekRange } from './format';
+import { kr, todayLocal, weekNumber, weekRange } from './format';
 
 type Week = 'current' | 'next';
 
-export function PlanView({ refreshKey }: { refreshKey: number }) {
+interface Props {
+  refreshKey: number;
+  /** A Swedish household that has not chosen where it shops yet gets no offers. */
+  needsSetup: boolean;
+  onOpenSettings: () => void;
+}
+
+export function PlanView({ refreshKey, needsSetup, onOpenSettings }: Props) {
   const [week, setWeek] = useState<Week | null>(null);
   const [plans, setPlans] = useState<Partial<Record<Week, Plan | null>>>({});
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +39,7 @@ export function PlanView({ refreshKey }: { refreshKey: number }) {
     () => new Map(plan?.shoppingList.stores.flatMap((s) => s.items.map((i) => [i.offerId, s.chainName] as const)) ?? []),
     [plan],
   );
-  const today = todayInCopenhagen();
+  const today = todayLocal();
 
   const onRate = async (date: string, rating: Rating) => {
     await rateMeal(date, rating);
@@ -47,6 +54,17 @@ export function PlanView({ refreshKey }: { refreshKey: number }) {
           </button>
         ))}
       </div>
+
+      {needsSetup && (
+        <section className="panel setup-banner" role="status">
+          <p>
+            <strong>Tell us where you shop.</strong> Swedish stores have their own weekly offers, so plans need your city or location.
+          </p>
+          <button className="primary" onClick={onOpenSettings}>
+            Open settings
+          </button>
+        </section>
+      )}
 
       {error && (
         <p className="error" role="alert">
@@ -76,7 +94,7 @@ export function PlanView({ refreshKey }: { refreshKey: number }) {
             <div className="chips">
               <span className="pill">Reviewed {plan.verdict.score}/10</span>
               <span className="pill">{plan.dinners.length} dinners</span>
-              <span className="pill">{dkk(plan.shoppingList.offerTotal)} on offers</span>
+              <span className="pill">{kr(plan.shoppingList.offerTotal)} on offers</span>
               {plan.state === 'generating_images' && <span className="pill">Photos on their way…</span>}
             </div>
           </header>

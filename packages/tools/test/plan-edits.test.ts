@@ -32,7 +32,7 @@ const draft = (date: string, dish: string, ingredients: DinnerDraft['ingredients
   cookingMinutes: 25,
   ingredients,
   steps: ['Cook.', 'Serve.'],
-  estimatedCostDkk: 70,
+  estimatedCost: 70,
 });
 
 const nutrition = { kcal: 600, protein: 40, fat: 20, saturatedFat: 5, carbs: 50, sugars: 5, fiber: 6, salt: 1, unmatched: [] };
@@ -40,6 +40,7 @@ const nutrition = { kcal: 600, protein: 40, fat: 20, saturatedFat: 5, carbs: 50,
 const plan: StoredPlan = {
   householdId: 'home',
   week: '2026-W45',
+  currency: 'DKK',
   status: 'approved',
   dinners: [
     { ...draft('2026-11-02', 'Old Monday', [{ name: 'pork', grams: 400, offerId: 'a' }, { name: 'rice', grams: 150, offerId: null }]), servings: 2, nutrition, imageUrl: 'x' },

@@ -26,7 +26,7 @@ try {
   console.log(plan.verdict.summary);
   for (const d of plan.dinners) {
     const offers = d.ingredients.filter((i) => i.offerId).length;
-    console.log(`- ${d.date} ${d.dish} [${d.mainProtein}, ${d.cuisine}, ${d.cookingMinutes} min] ${d.nutrition.kcal} kcal, ${d.nutrition.protein} g protein, ${offers} offers, ~${d.estimatedCostDkk} DKK`);
+    console.log(`- ${d.date} ${d.dish} [${d.mainProtein}, ${d.cuisine}, ${d.cookingMinutes} min] ${d.nutrition.kcal} kcal, ${d.nutrition.protein} g protein, ${offers} offers, ~${d.estimatedCost} DKK`);
   }
   if (plan.checks.length) console.log('Checks:', plan.checks);
   console.log('Usage:', plan.usage, `in ${Math.round((Date.now() - started) / 1000)}s`);

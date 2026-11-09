@@ -1,6 +1,10 @@
 import { TZDate } from '@date-fns/tz';
 import { addDays, addWeeks, endOfISOWeek, getISOWeek, getISOWeekYear, setISOWeek, setISOWeekYear, startOfISOWeek } from 'date-fns';
 
+/**
+ * Weeks, offer validity and schedules are evaluated in this zone. Stockholm keeps the same time as
+ * Copenhagen (CET/CEST, same DST rules), so one zone serves Danish and Swedish households alike.
+ */
 export const TIME_ZONE = 'Europe/Copenhagen';
 
 /** ISO week key such as `2026-W44`, evaluated in Danish local time. */

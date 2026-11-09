@@ -11,6 +11,7 @@ const dinners = [
 const plan: StoredPlan = {
   householdId: 'home',
   week: '2026-W45',
+  currency: 'DKK',
   status: 'approved',
   dinners,
   notes: '',
@@ -48,5 +49,12 @@ describe('renderPlanEmail', () => {
     expect(html).toContain('Frida');
     expect(text).toContain('MONDAY 2 NOV: Tacos with <script>');
     expect(text).toContain('Also needed: potatoes 500 g, salmon 400 g, tortillas 300 g');
+  });
+});
+
+describe('renderPlanEmail for a Swedish household', () => {
+  it('names the Swedish offers', () => {
+    const { html } = renderPlanEmail({ ...plan, currency: 'SEK' });
+    expect(html).toContain("this week's Swedish supermarket offers");
   });
 });

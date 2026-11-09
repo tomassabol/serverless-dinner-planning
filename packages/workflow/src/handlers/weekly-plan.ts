@@ -37,7 +37,8 @@ export const handler = withDurableExecution(async (event: unknown, ctx: DurableC
   const input = InputSchema.parse(event);
   const executionArn = ctx.executionContext.durableExecutionArn;
 
-  if (!input.skipFetch) await ctx.invoke('refresh-offers', INGEST_FUNCTION_ARN, {});
+  // Only this household's market (Denmark, or its Swedish location) is refreshed.
+  if (!input.skipFetch) await ctx.invoke('refresh-offers', INGEST_FUNCTION_ARN, { householdIds: [input.householdId] });
 
   // A run costs model tokens, so a failed plan fails the execution instead of being retried.
   const plan = MealPlanSchema.parse(

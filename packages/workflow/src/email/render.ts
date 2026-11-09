@@ -1,9 +1,11 @@
-import type { StoredPlan } from '@dinner/shared';
+import type { Currency, StoredPlan } from '@dinner/shared';
 
 const LONG_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const SHORT_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
 const day = (date: string, format = LONG_DAY) => format.format(new Date(`${date}T12:00:00Z`));
-const dkk = (n: number) => `${n.toFixed(2).replace('.', ',').replace(',00', '')} kr`;
+/** DKK and SEK are both written "12,50 kr". */
+const kr = (n: number) => `${n.toFixed(2).replace('.', ',').replace(',00', '')} kr`;
+const COUNTRY_BY_CURRENCY: Record<Currency, string> = { DKK: 'Danish', SEK: 'Swedish' };
 
 const COLORS = {
   page: '#f4f1ec',
@@ -16,6 +18,7 @@ const COLORS = {
 };
 
 export function renderPlanEmail(plan: StoredPlan): { subject: string; html: string; text: string } {
+  const offersFrom = `this week's ${COUNTRY_BY_CURRENCY[plan.currency]} supermarket offers`;
   const weekNumber = plan.week.split('-W')[1]?.replace(/^0/, '');
   const dishes = plan.dinners.map((d) => d.dish.split(/ with | med /i)[0]);
   const subject = truncate(`Week ${weekNumber} dinners: ${dishes.join(', ')}`, 120);
@@ -49,7 +52,7 @@ export function renderPlanEmail(plan: StoredPlan): { subject: string; html: stri
       <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${COLORS.accent};font-weight:600">${esc(day(d.date))}</div>
       <h2 style="margin:6px 0 8px;font-size:22px;line-height:1.25;color:${COLORS.ink}">${esc(d.dish)}</h2>
       <p style="margin:0 0 12px;color:${COLORS.ink};line-height:1.5">${esc(d.description)}</p>
-      <p style="margin:0 0 16px;color:${COLORS.muted};font-size:14px">${d.cookingMinutes} min · ${esc(d.cuisine)} · ${d.nutrition.kcal} kcal · ${d.nutrition.protein} g protein · ${d.nutrition.fiber} g fibre per serving · ~${dkk(d.estimatedCostDkk)}</p>
+      <p style="margin:0 0 16px;color:${COLORS.muted};font-size:14px">${d.cookingMinutes} min · ${esc(d.cuisine)} · ${d.nutrition.kcal} kcal · ${d.nutrition.protein} g protein · ${d.nutrition.fiber} g fibre per serving · ~${kr(d.estimatedCost)}</p>
       <h3 style="margin:0 0 8px;font-size:15px;color:${COLORS.ink}">Ingredients <span style="font-weight:400;color:${COLORS.muted}">(${d.servings} servings)</span></h3>
       <ul style="margin:0 0 16px;padding-left:20px;color:${COLORS.ink};font-size:14px">${ingredients}</ul>
       <h3 style="margin:0 0 8px;font-size:15px;color:${COLORS.ink}">How to make it</h3>
@@ -63,13 +66,13 @@ export function renderPlanEmail(plan: StoredPlan): { subject: string; html: stri
   const stores = plan.shoppingList.stores
     .map(
       (s) => `
-<h3 style="margin:16px 0 8px;font-size:16px;color:${COLORS.ink}">${esc(s.chainName)} <span style="font-weight:400;color:${COLORS.muted}">· ${dkk(s.subtotal)}</span></h3>
+<h3 style="margin:16px 0 8px;font-size:16px;color:${COLORS.ink}">${esc(s.chainName)} <span style="font-weight:400;color:${COLORS.muted}">· ${kr(s.subtotal)}</span></h3>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:${COLORS.ink}">
 ${s.items
   .map(
     (i) => `<tr>
   <td style="padding:6px 0;border-bottom:1px solid ${COLORS.rule}">${esc(i.heading)}<br><span style="color:${COLORS.muted};font-size:12px">for ${i.forDinners.map((d) => day(d, SHORT_DAY)).join(', ')} · until ${day(i.validTo.slice(0, 10), SHORT_DAY)} ${i.validTo.slice(8, 10)}/${i.validTo.slice(5, 7)}</span></td>
-  <td style="padding:6px 0;border-bottom:1px solid ${COLORS.rule};text-align:right;white-space:nowrap;vertical-align:top">${dkk(i.price)}${i.prePrice ? `<br><s style="color:${COLORS.muted};font-size:12px">${dkk(i.prePrice)}</s>` : ''}</td>
+  <td style="padding:6px 0;border-bottom:1px solid ${COLORS.rule};text-align:right;white-space:nowrap;vertical-align:top">${kr(i.price)}${i.prePrice ? `<br><s style="color:${COLORS.muted};font-size:12px">${kr(i.prePrice)}</s>` : ''}</td>
 </tr>`,
   )
   .join('')}
@@ -91,19 +94,19 @@ ${s.items
     <div style="font-size:13px;color:${COLORS.muted}">Week ${esc(weekNumber ?? plan.week)} · ${esc(range)}</div>
     <h1 style="margin:6px 0 12px;font-size:28px;line-height:1.2;color:${COLORS.ink}">What's for dinner this week</h1>
     <p style="margin:0;font-size:16px;line-height:1.55;color:${COLORS.ink}">${esc(plan.verdict.summary)}</p>
-    <p style="margin:12px 0 0;font-size:13px;color:${COLORS.muted}">Reviewed ${plan.verdict.score}/10 · about ${dkk(plan.shoppingList.offerTotal)} on offers</p>
+    <p style="margin:12px 0 0;font-size:13px;color:${COLORS.muted}">Reviewed ${plan.verdict.score}/10 · about ${kr(plan.shoppingList.offerTotal)} on offers</p>
   </td></tr>
   ${dinnerCards}
   <tr><td style="padding:0 0 24px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLORS.card};border-radius:12px;border:1px solid ${COLORS.rule}"><tr><td style="padding:20px 24px 24px">
       <h2 style="margin:0 0 4px;font-size:20px;color:${COLORS.ink}">Shopping list</h2>
-      <p style="margin:0;color:${COLORS.muted};font-size:14px">Offers grouped by store, ${dkk(plan.shoppingList.offerTotal)} in total.</p>
+      <p style="margin:0;color:${COLORS.muted};font-size:14px">Offers grouped by store, ${kr(plan.shoppingList.offerTotal)} in total.</p>
       ${stores}
       ${other}
     </td></tr></table>
   </td></tr>
   <tr><td style="padding:0 4px 24px;font-size:12px;line-height:1.5;color:${COLORS.muted}">
-    Planned by your dinner agents from this week's Danish supermarket offers. Nutrition per serving is calculated with Frida, the Danish Food Composition Database (DTU Food, CC BY 4.0). Meal photos are AI-generated illustrations.
+    Planned by your dinner agents from ${offersFrom}. Nutrition per serving is calculated with Frida, the Danish Food Composition Database (DTU Food, CC BY 4.0). Meal photos are AI-generated illustrations.
   </td></tr>
 </table>
 </td></tr></table>
@@ -123,8 +126,8 @@ ${s.items
     ]),
     'SHOPPING LIST',
     ...plan.shoppingList.stores.flatMap((s) => [
-      `${s.chainName} (${dkk(s.subtotal)})`,
-      ...s.items.map((i) => `- ${i.heading}: ${dkk(i.price)}`),
+      `${s.chainName} (${kr(s.subtotal)})`,
+      ...s.items.map((i) => `- ${i.heading}: ${kr(i.price)}`),
     ]),
     plan.shoppingList.other.length ? `Also needed: ${plan.shoppingList.other.map((o) => `${o.name} ${o.grams} g`).join(', ')}` : '',
     '',

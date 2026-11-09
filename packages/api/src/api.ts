@@ -4,24 +4,31 @@
  *   GET /conversations/{id}       messages of one conversation, from AgentCore Memory
  *   GET /plans/{week}             stored plan for "current", "next" or an ISO week, with each dinner's rating
  *   POST /meals/{date}/rating     { rating: "up" | "down" } for a planned dinner
+ *   GET /household                where the household shops (country, Swedish location, preferred chains)
+ *   PUT /household                { country, location, preferredChains? }; refreshes offers when the market changes
  */
 import { BedrockAgentCoreClient, paginateListEvents } from '@aws-sdk/client-bedrock-agentcore';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { DynamoDBDocumentClient, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { householdKeys, isoWeekDates, resolveWeekKey } from '@dinner/shared';
+import { PreferencesRepo } from '@dinner/tools/preferences';
 import { PlanRepo } from '@dinner/workflow/plans';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { z } from 'zod';
 import { ConversationRepo } from './conversations.js';
+import { HouseholdUpdateSchema, householdView, marketChanged } from './household.js';
 import { callerFrom } from './identity.js';
 
-const env = z.object({ TABLE_NAME: z.string(), MEMORY_ID: z.string() }).parse(process.env);
+const env = z.object({ TABLE_NAME: z.string(), MEMORY_ID: z.string(), INGEST_FUNCTION_NAME: z.string() }).parse(process.env);
 const logger = new Logger({ serviceName: 'api' });
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const conversations = new ConversationRepo(ddb, env.TABLE_NAME);
 const plans = new PlanRepo(ddb, env.TABLE_NAME);
 const agentcore = new BedrockAgentCoreClient({});
+const preferences = new PreferencesRepo(DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } }), env.TABLE_NAME);
+const lambda = new LambdaClient({});
 
 const json = (statusCode: number, body: unknown): APIGatewayProxyResult => ({
   statusCode,
@@ -52,6 +59,30 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return json(200, { ...visible, dinners: visible.dinners.map((d) => ({ ...d, rating: ratings.get(d.date) ?? null })) });
     }
 
+    if (event.resource === '/household' && event.httpMethod === 'GET') {
+      return json(200, householdView(await preferences.get(householdId)));
+    }
+
+    if (event.resource === '/household' && event.httpMethod === 'PUT') {
+      const parsed = HouseholdUpdateSchema.safeParse(JSON.parse(event.body ?? '{}'));
+      if (!parsed.success) return json(400, { message: parsed.error.issues[0]?.message ?? 'Invalid settings' });
+      const before = await preferences.get(householdId);
+      const { country, location, preferredChains } = parsed.data;
+      const after = await preferences.setMarket(householdId, { country, location }, preferredChains);
+      if (marketChanged(before, after)) {
+        // Fetch the new market's offers now instead of waiting for the daily ingest (takes a minute or two).
+        await lambda.send(
+          new InvokeCommand({
+            FunctionName: env.INGEST_FUNCTION_NAME,
+            InvocationType: 'Event',
+            Payload: new TextEncoder().encode(JSON.stringify({ householdIds: [householdId] })),
+          }),
+        );
+        logger.info('Household market changed', { householdId, country, location: location?.label });
+      }
+      return json(200, householdView(after));
+    }
+
     const date = event.pathParameters?.date;
     if (event.resource === '/meals/{date}/rating' && date && event.httpMethod === 'POST') {
       const { rating } = RatingSchema.parse(JSON.parse(event.body ?? '{}'));
@@ -75,7 +106,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return json(404, { message: 'Not found' });
   } catch (error) {
     logger.error('Request failed', { error, resource: event.resource });
-    return json(error instanceof z.ZodError ? 400 : 500, { message: 'Request failed' });
+    if ((error as Error).name === 'ConditionalCheckFailedException') return json(409, { message: 'Someone else just changed the settings; reload and try again.' });
+    return json(error instanceof z.ZodError || error instanceof SyntaxError ? 400 : 500, { message: 'Request failed' });
   }
 };
 

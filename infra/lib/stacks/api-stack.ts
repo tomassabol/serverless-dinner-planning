@@ -4,6 +4,7 @@ import type * as agentcore from 'aws-cdk-lib/aws-bedrockagentcore';
 import type * as cognito from 'aws-cdk-lib/aws-cognito';
 import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import type * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import type { Construct } from 'constructs';
@@ -16,6 +17,8 @@ export interface ApiStackProps extends StackProps {
   userPool: cognito.IUserPool;
   chatRuntime: agentcore.CfnRuntime;
   memory: agentcore.CfnMemory;
+  /** Started (async) when a household moves to another offer market, so its offers are ready right away. */
+  ingestFn: lambda.IFunction;
   /** Origins allowed for browser calls during local development (production is same-origin via CloudFront). */
   devOrigins: string[];
 }
@@ -29,7 +32,7 @@ export class ApiStack extends Stack {
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
-    const { config, table, userPool, chatRuntime, memory } = props;
+    const { config, table, userPool, chatRuntime, memory, ingestFn } = props;
 
     const chatFn = new NodeFunction(this, 'ChatFunction', {
       config,
@@ -51,11 +54,12 @@ export class ApiStack extends Stack {
       config,
       serviceName: 'api',
       entry: 'packages/api/src/api.ts',
-      description: 'Conversations, plans and meal ratings for the web app',
+      description: 'Conversations, plans, meal ratings and household settings for the web app',
       timeout: Duration.seconds(15),
-      environment: { TABLE_NAME: table.tableName, MEMORY_ID: memory.attrMemoryId },
+      environment: { TABLE_NAME: table.tableName, MEMORY_ID: memory.attrMemoryId, INGEST_FUNCTION_NAME: ingestFn.functionName },
     });
     table.grantReadWriteData(apiFn);
+    ingestFn.grantInvoke(apiFn);
     apiFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['bedrock-agentcore:ListEvents'], resources: [memory.attrMemoryArn] }));
 
     const accessLogs = new logs.LogGroup(this, 'AccessLogs', {
@@ -79,7 +83,7 @@ export class ApiStack extends Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: props.devOrigins,
         allowHeaders: ['authorization', 'content-type'],
-        allowMethods: ['GET', 'POST', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
       },
     });
 
@@ -104,6 +108,9 @@ export class ApiStack extends Stack {
     conversations.addResource('{id}').addMethod('GET', api, auth);
     this.api.root.addResource('plans').addResource('{week}').addMethod('GET', api, auth);
     this.api.root.addResource('meals').addResource('{date}').addResource('rating').addMethod('POST', api, auth);
+    const household = this.api.root.addResource('household');
+    household.addMethod('GET', api, auth);
+    household.addMethod('PUT', api, auth);
 
     new ssm.StringParameter(this, 'ApiUrlParam', { parameterName: `/${config.prefix}/api/url`, stringValue: this.api.url });
     new CfnOutput(this, 'ApiUrl', { value: this.api.url });

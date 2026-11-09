@@ -137,16 +137,16 @@ function checkRepetition(plan: MealPlanDraft, history: MealRecord[]): Issue[] {
 
 /** Protein families for the repeat check, so "medister sausage", "minced pork" and "pork belly" all count as pork. */
 const PROTEIN_FAMILIES: [family: string, terms: string[]][] = [
-  ['pork', ['pork', 'medister', 'bacon', 'ham', 'flæsk', 'gris', 'svin', 'pancetta', 'chorizo', 'salami', 'frikadelle', 'sausage', 'pølse']],
-  ['beef', ['beef', 'veal', 'steak', 'okse', 'kalv']],
-  ['chicken', ['chicken', 'kylling', 'hen']],
+  ['pork', ['pork', 'medister', 'bacon', 'ham', 'flæsk', 'fläsk', 'gris', 'svin', 'pancetta', 'chorizo', 'salami', 'frikadelle', 'sausage', 'pølse', 'korv']],
+  ['beef', ['beef', 'veal', 'steak', 'okse', 'kalv', 'nötkött']],
+  ['chicken', ['chicken', 'kylling', 'kyckling', 'hen']],
   ['turkey', ['turkey', 'kalkun']],
   ['duck', ['duck', 'and']],
   ['lamb', ['lamb', 'lam']],
-  ['fish', ['fish', 'salmon', 'cod', 'tuna', 'mackerel', 'herring', 'trout', 'plaice', 'pollock', 'haddock', 'hake', 'laks', 'torsk', 'sild', 'rødspætte']],
+  ['fish', ['fish', 'salmon', 'cod', 'tuna', 'mackerel', 'herring', 'trout', 'plaice', 'pollock', 'haddock', 'hake', 'laks', 'lax', 'laxfil', 'torsk', 'sild', 'sill', 'rødspætte']],
   ['shellfish', ['shrimp', 'prawn', 'mussel', 'crab', 'lobster', 'squid', 'scallop', 'rejer']],
-  ['eggs', ['egg', 'æg']],
-  ['legumes', ['lentil', 'chickpea', 'bean', 'pea', 'linse', 'kikært', 'bønne']],
+  ['eggs', ['egg', 'æg', 'ägg']],
+  ['legumes', ['lentil', 'chickpea', 'bean', 'pea', 'linse', 'lins', 'kikært', 'kikärt', 'bønne', 'böna', 'bönor']],
   ['soy', ['tofu', 'tempeh', 'edamame']],
   ['cheese', ['cheese', 'halloumi', 'feta', 'paneer', 'ost']],
 ];
@@ -215,7 +215,7 @@ const blocking = issue('blocking');
 const major = issue('major');
 const minor = issue('minor');
 
-const normalize = (s: string) => s.toLowerCase().replace(/[^a-zæøå0-9]+/g, ' ').trim();
+const normalize = (s: string) => s.toLowerCase().replace(/[^a-zæøåäöé0-9]+/g, ' ').trim();
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const singular = (s: string) => (s.length > 3 && s.endsWith('s') ? s.slice(0, -1) : s);
 

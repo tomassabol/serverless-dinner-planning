@@ -116,20 +116,40 @@ export class WorkflowStack extends Stack {
       version: weeklyFn.currentVersion,
     });
 
+    // Fans out to one durable execution per household (every distinct custom:householdId in Cognito),
+    // after refreshing all markets' offers once.
+    const dispatchFn = fn('DispatchFunction', 'workflow-dispatch', Duration.minutes(14), {
+      INGEST_FUNCTION_ARN: props.ingestFn.functionArn,
+      WEEKLY_PLAN_FUNCTION: this.weeklyPlan.functionArn,
+      USER_POOL_ID: userPool.userPoolId,
+    });
+    props.ingestFn.grantInvoke(dispatchFn);
+    this.weeklyPlan.grantInvoke(dispatchFn);
+    dispatchFn.addToRolePolicy(new iam.PolicyStatement({ actions: ['cognito-idp:ListUsers'], resources: [userPool.userPoolArn] }));
+
     new scheduler.Schedule(this, 'SundaySchedule', {
       scheduleName: `${config.prefix}-weekly-plan`,
-      description: 'Plans next week every Sunday at 17:00 Danish time',
+      description: 'Plans next week for every household every Sunday at 17:00 Danish/Swedish time',
       schedule: scheduler.ScheduleExpression.cron({
         minute: '0',
         hour: '17',
         weekDay: 'SUN',
         timeZone: TimeZone.of('Europe/Copenhagen'),
       }),
-      target: new targets.LambdaInvoke(this.weeklyPlan, {
-        input: scheduler.ScheduleTargetInput.fromObject({ householdId: 'home', week: 'next' }),
+      target: new targets.LambdaInvoke(dispatchFn, {
+        input: scheduler.ScheduleTargetInput.fromObject({ week: 'next' }),
         retryAttempts: 1,
       }),
     });
+
+    new cloudwatch.Alarm(this, 'WeeklyDispatch-errors', {
+      alarmName: `${config.prefix}-weekly-dispatch-errors`,
+      alarmDescription: 'The Sunday dispatcher could not start the weekly plans',
+      metric: dispatchFn.metricErrors({ period: Duration.hours(1), statistic: 'Sum' }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cwActions.SnsAction(props.alertTopic));
 
     const alarmAction = new cwActions.SnsAction(props.alertTopic);
     for (const [name, metricName] of [

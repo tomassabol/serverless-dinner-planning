@@ -5,7 +5,7 @@ import {
   QueryCommand,
   type DynamoDBDocumentClient,
 } from '@aws-sdk/lib-dynamodb';
-import { StoredPlanSchema, householdKeys, isoWeekDates, type MealRecord, type StoredPlan } from '@dinner/shared';
+import { StoredPlanSchema, householdKeys, isoWeekDates, migratePlan, type MealRecord, type StoredPlan } from '@dinner/shared';
 
 export class PlanRepo {
   constructor(
@@ -17,7 +17,7 @@ export class PlanRepo {
     const { Item } = await this.ddb.send(
       new GetCommand({ TableName: this.tableName, Key: householdKeys.plan(householdId, week) }),
     );
-    return Item ? StoredPlanSchema.parse(Item) : null;
+    return Item ? StoredPlanSchema.parse(migratePlan(Item)) : null;
   }
 
   async put(plan: StoredPlan) {

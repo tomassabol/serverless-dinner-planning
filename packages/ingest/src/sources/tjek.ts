@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { Chain, Offer, Unit } from '@dinner/shared';
-import type { OfferSource } from './types.js';
+import type { Chain, Offer, OfferMarket, Unit } from '@dinner/shared';
+import { NEARBY_RADIUS_KM, type OfferSource } from './types.js';
 
 const BASE_URL = 'https://squid-api.tjek.com/v2';
 const PAGE_SIZE = 100;
@@ -9,14 +9,17 @@ const MAX_OFFSET = 1000;
 const PAGE_DELAY_MS = 250;
 const USER_AGENT = 'dinner-planner/0.1 (personal, non-commercial)';
 
-/** Catalogs that never contain groceries (Bilka/føtex run separate non-food flyers). */
-const NON_FOOD_CATALOG = /non-?food|legetøj|elektronik|prosonic|bolig|have|tekstil|tøj|halloween|jul(e)?gaver/i;
+/** Catalogs that never contain groceries (Bilka/føtex and Swedish hypermarkets run separate non-food flyers). */
+const NON_FOOD_CATALOG =
+  /non-?food|legetøj|elektronik|prosonic|bolig|have|tekstil|tøj|halloween|jul(e)?gaver|leksak|inredning|trädgård|kläder|julklapp/i;
 
 const TjekCatalogSchema = z.object({
   id: z.string(),
   label: z.string().nullable(),
   offer_count: z.number().nullable(),
   run_till: z.string(),
+  /** True for one flyer that applies to every store of the chain. */
+  all_stores: z.boolean().nullable().optional(),
 });
 
 const range = z.object({ from: z.number().nullable(), to: z.number().nullable() });
@@ -58,6 +61,7 @@ const round = (value: number, decimals: number) => Math.round(value * 10 ** deci
 const toIso = (value: string) => new Date(value.replace(/([+-]\d{2})(\d{2})$/, '$1:$2')).toISOString();
 
 export function normalizeTjekOffer(chain: Chain, offer: TjekOffer): Offer {
+  if (chain.source !== 'tjek') throw new Error(`${chain.id} is not a Tjek chain`);
   const amount = toAmount(offer.quantity);
   const midpoint = amount ? (amount.from + amount.to) / 2 : 0;
 
@@ -100,18 +104,35 @@ export class TjekOfferSource implements OfferSource {
 
   constructor(private readonly fetchImpl: typeof fetch = fetch) {}
 
-  async fetchRaw(chain: Chain): Promise<unknown[]> {
-    const catalogs = z
+  async fetchRaw(chain: Chain, market: OfferMarket): Promise<unknown[]> {
+    if (chain.source !== 'tjek') throw new Error(`${chain.id} is not a Tjek chain`);
+    const local = 'local' in chain && chain.local;
+    if (local && !market.location) throw new Error(`${chain.id} needs a market location`);
+
+    // Swedish chains publish a flyer per store; with a location Tjek returns the nearest store's catalog.
+    const near = local && market.location
+      ? `&r_lat=${market.location.lat}&r_lng=${market.location.lng}&r_radius=${NEARBY_RADIUS_KM * 1000}&order_by=distance`
+      : '';
+    let catalogs = z
       .array(TjekCatalogSchema)
-      .parse(await this.getJson(`${BASE_URL}/catalogs?dealer_ids=${chain.tjekDealerId}&limit=${PAGE_SIZE}`));
+      .parse(await this.getJson(`${BASE_URL}/catalogs?dealer_ids=${chain.tjekDealerId}&limit=${local ? 5 : PAGE_SIZE}${near}`));
+    if (local && catalogs.length === 0) {
+      // Some chains (City Gross) publish one nationwide flyer that is not tied to store locations.
+      catalogs = z
+        .array(TjekCatalogSchema)
+        .parse(await this.getJson(`${BASE_URL}/catalogs?dealer_ids=${chain.tjekDealerId}&limit=5`))
+        .filter((c) => c.all_stores === true);
+    }
 
     const now = Date.now();
     const relevant = catalogs.filter(
       (c) => !NON_FOOD_CATALOG.test(c.label ?? '') && new Date(toIso(c.run_till)).getTime() > now,
     );
 
-    // Some dealers (e.g. Løvbjerg) expose offers without listing catalogs.
+    // Some dealers (e.g. Løvbjerg) expose offers without listing catalogs. A local chain without a
+    // catalog simply has no store nearby.
     if (catalogs.length === 0) {
+      if (local) return [];
       return this.fetchPaged(`${BASE_URL}/offers?dealer_ids=${chain.tjekDealerId}`);
     }
 

@@ -45,3 +45,28 @@ describe('Tjek normalization', () => {
     expect(source.normalize(foetex, { id: 'x' })).toBeNull();
   });
 });
+
+describe('Tjek fetching for Swedish markets', () => {
+  const market = { key: 'se-57.71_11.97', country: 'SE' as const, location: { lat: 57.71, lng: 11.97, label: 'Göteborg' } };
+  const catalog = (id: string, allStores: boolean) => ({ id, label: 'Vecka 46', offer_count: 1, run_till: '2099-01-01T22:59:59+0000', all_stores: allStores });
+
+  it('asks for the nearest store and falls back to a nationwide flyer', async () => {
+    const urls: string[] = [];
+    const fetchImpl = async (url: string | URL | Request) => {
+      const href = url.toString();
+      urls.push(href);
+      if (href.includes('/catalogs?') && href.includes('r_lat=')) return Response.json([]);
+      if (href.includes('/catalogs?')) return Response.json([catalog('store-specific', false), catalog('national', true)]);
+      return Response.json([fixture[0]]);
+    };
+    const remote = new TjekOfferSource(fetchImpl as unknown as typeof fetch);
+    const raw = await remote.fetchRaw(getChain('city-gross'), market);
+    expect(raw).toHaveLength(1);
+    expect(urls[0]).toContain('r_lat=57.71&r_lng=11.97&r_radius=15000&order_by=distance');
+    expect(urls.at(-1)).toContain('catalog_ids=national');
+  });
+
+  it('refuses a Swedish chain without a location', async () => {
+    await expect(source.fetchRaw(getChain('ica-nara'), { ...market, location: null })).rejects.toThrow('location');
+  });
+});

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ChainIdSchema } from './chains.js';
+import { CountrySchema } from './countries.js';
 
 /** Household IDs come from Cognito (`custom:householdId`) and are injected by the Gateway interceptor. */
 export const HouseholdIdSchema = z.string().regex(/^[a-z0-9-]{1,64}$/);
@@ -21,12 +22,33 @@ export const PlanSettingsSchema = z.object({
   maxWeekdayCookingMinutes: z.number().int().min(10).max(240).default(45),
   /** Empty means every ingested chain. */
   preferredChains: z.array(ChainIdSchema).default([]),
-  weeklyBudgetDkk: z.number().positive().nullable().default(null),
+  /** In the household's currency (DKK or SEK). */
+  weeklyBudget: z.number().positive().nullable().default(null),
 });
 export type PlanSettings = z.infer<typeof PlanSettingsSchema>;
 
+export const LocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  /** Human-readable place, e.g. "Göteborg". */
+  label: z.string().min(1).max(80),
+});
+export type Location = z.infer<typeof LocationSchema>;
+
+/**
+ * Where the household shops. Danish offers are national; Swedish chains publish a flyer per store,
+ * so a Swedish household needs a location (the nearest store of each chain is used).
+ * Changed in the web app's settings, never by the agents.
+ */
+export const MarketSchema = z.object({
+  country: CountrySchema.default('DK'),
+  location: LocationSchema.nullable().default(null),
+});
+export type Market = z.infer<typeof MarketSchema>;
+
 export const PreferencesSchema = z.object({
   householdId: HouseholdIdSchema,
+  market: MarketSchema.default(MarketSchema.parse({})),
   members: z.array(MemberSchema).default([]),
   settings: PlanSettingsSchema.default(PlanSettingsSchema.parse({})),
   notes: z.array(z.string()).default([]),
@@ -45,8 +67,19 @@ export const MealRecordSchema = z.object({
 });
 export type MealRecord = z.infer<typeof MealRecordSchema>;
 
+/** Renames fields stored before Sweden was supported (`weeklyBudgetDkk` became `weeklyBudget`). */
+export function migratePreferences(item: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  const settings = item?.settings as Record<string, unknown> | undefined;
+  if (!item || !settings || !('weeklyBudgetDkk' in settings)) return item;
+  const { weeklyBudgetDkk, ...rest } = settings;
+  return { ...item, settings: { weeklyBudget: weeklyBudgetDkk, ...rest } };
+}
+
 export const householdKeys = {
   preferences: (householdId: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: 'PREFERENCES' }),
   meal: (householdId: string, date: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: `MEAL#${date}` }),
   plan: (householdId: string, week: string) => ({ pk: `HOUSEHOLD#${householdId}`, sk: `PLAN#${week}` }),
 };
+
+/** GSI keys on the preferences item, so every household with saved preferences can be listed (ingest uses it). */
+export const householdIndexKeys = (householdId: string) => ({ gsi1pk: 'HOUSEHOLDS', gsi1sk: householdId });

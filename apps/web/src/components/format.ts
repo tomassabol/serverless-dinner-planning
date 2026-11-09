@@ -4,7 +4,8 @@ const shortDayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'short', time
 export const asDate = (date: string) => new Date(`${date}T12:00:00Z`);
 export const longDay = (date: string) => dayFormat.format(asDate(date));
 export const shortDay = (date: string) => shortDayFormat.format(asDate(date));
-export const dkk = (n: number) => `${n.toLocaleString('da-DK', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} kr`;
+/** Prices in DKK and SEK are both written "12,50 kr". */
+export const kr = (n: number) => `${n.toLocaleString('da-DK', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })} kr`;
 export const weekNumber = (week: string) => Number(week.split('-W')[1]);
 
 const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -29,6 +30,6 @@ export function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-/** Local date (YYYY-MM-DD) in Copenhagen, to highlight tonight's dinner. */
-export const todayInCopenhagen = () =>
+/** Local date (YYYY-MM-DD) in Denmark and Sweden (same time zone), to highlight tonight's dinner. */
+export const todayLocal = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Copenhagen' }).format(new Date());

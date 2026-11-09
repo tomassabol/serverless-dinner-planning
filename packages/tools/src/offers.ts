@@ -1,7 +1,7 @@
 import { GetObjectCommand, NoSuchKey, type S3Client } from '@aws-sdk/client-s3';
 import { TZDate } from '@date-fns/tz';
 import Fuse from 'fuse.js';
-import { TIME_ZONE, isEverydayPrice, resolveWeekKey, type Offer } from '@dinner/shared';
+import { TIME_ZONE, isEverydayPrice, resolveWeekKey, snapshotKey, type Offer } from '@dinner/shared';
 import type { z } from 'zod';
 import type { SearchOffersInput } from './definitions.js';
 
@@ -28,6 +28,10 @@ interface WeekOffers {
   fuse: Fuse<Offer>;
 }
 
+/** Shown to the agent when a market has no snapshot yet, so it can tell "not fetched" apart from "no matches". */
+export const NO_SNAPSHOT_MESSAGE =
+  "No offers have been fetched for this household's stores and week yet. Offers for a new location take a minute or two after it is saved; try again shortly. Do not plan around made-up offers.";
+
 export class OfferCatalog {
   private readonly cache = new Map<string, WeekOffers>();
 
@@ -41,9 +45,12 @@ export class OfferCatalog {
     return resolveWeekKey(week, this.now());
   }
 
-  async search(input: z.infer<typeof SearchOffersInput>) {
+  /** Searches one offer market (see `marketFor`): "dk", or a Swedish household's location. */
+  async search(input: z.infer<typeof SearchOffersInput>, marketKey: string) {
     const week = this.resolveWeek(input.week);
-    const { offers, fuse } = await this.load(week);
+    const loaded = await this.load(marketKey, week);
+    if (!loaded) return { week, totalMatches: 0, offers: [], message: NO_SNAPSHOT_MESSAGE };
+    const { offers, fuse } = loaded;
     const dinnerOnly = input.dinnerRelevantOnly ?? true;
     const limit = input.limit ?? 20;
 
@@ -65,19 +72,25 @@ export class OfferCatalog {
     };
   }
 
-  private async load(week: string): Promise<WeekOffers> {
-    const cached = this.cache.get(week);
+  /** The market's week snapshot, or null when ingest has not written one yet (never cached, so it shows up as soon as it exists). */
+  private async load(marketKey: string, week: string): Promise<WeekOffers | null> {
+    const cacheKey = `${marketKey}/${week}`;
+    const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.loadedAt < CACHE_TTL_MS) return cached;
 
-    let offers: Offer[] = [];
-    try {
-      const response = await this.s3.send(
-        new GetObjectCommand({ Bucket: this.bucketName, Key: `snapshots/${week}/offers.json` }),
-      );
-      offers = (JSON.parse(await response.Body!.transformToString()) as { offers: Offer[] }).offers;
-    } catch (error) {
-      if (!(error instanceof NoSuchKey)) throw error;
+    // Danish snapshots were stored without a market prefix before Sweden was supported.
+    const keys = [snapshotKey(marketKey, week), ...(marketKey === 'dk' ? [`snapshots/${week}/offers.json`] : [])];
+    let offers: Offer[] | null = null;
+    for (const key of keys) {
+      try {
+        const response = await this.s3.send(new GetObjectCommand({ Bucket: this.bucketName, Key: key }));
+        offers = (JSON.parse(await response.Body!.transformToString()) as { offers: Offer[] }).offers;
+        break;
+      } catch (error) {
+        if (!(error instanceof NoSuchKey)) throw error;
+      }
     }
+    if (!offers) return null;
 
     const entry: WeekOffers = {
       loadedAt: Date.now(),
@@ -92,7 +105,7 @@ export class OfferCatalog {
         ignoreLocation: true,
       }),
     };
-    this.cache.set(week, entry);
+    this.cache.set(cacheKey, entry);
     return entry;
   }
 }
@@ -128,7 +141,7 @@ export function summarize(offer: Offer): OfferSummary {
   };
 }
 
-/** Start and end of a calendar day in Danish time. */
+/** Start and end of a calendar day in local (Danish and Swedish) time. */
 function dayRange(date: string) {
   const start = new TZDate(`${date}T00:00:00`, TIME_ZONE);
   return { start: new Date(start.getTime()), end: new Date(start.getTime() + 24 * 3600_000 - 1) };

@@ -32,7 +32,7 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
         <div className="brand brand-large">
           <span aria-hidden>🍲</span> What's for dinner
         </div>
-        <p className="muted">Weekly dinners built from Danish supermarket offers.</p>
+        <p className="muted">Weekly dinners built from Danish and Swedish supermarket offers.</p>
 
         {step === 'credentials' && (
           <form onSubmit={(e) => run(e, () => startSignIn(email, password))}>

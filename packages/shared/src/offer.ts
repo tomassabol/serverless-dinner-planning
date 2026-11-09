@@ -37,7 +37,7 @@ export type OfferTags = z.infer<typeof OfferTagsSchema>;
 
 export const OfferSchema = z.object({
   id: z.string(),
-  source: z.literal('tjek'),
+  source: z.enum(['tjek', 'axfood']),
   chain: ChainIdSchema,
   heading: z.string(),
   description: z.string().nullable(),
@@ -67,9 +67,9 @@ export function isFoodOffer(offer: Offer): boolean {
   return offer.tags !== null && offer.tags.category !== 'non_food';
 }
 
-const EVERYDAY_PRICE = /fast lav pris|altid lav pris|hver dag/i;
+const EVERYDAY_PRICE = /fast lav pris|altid lav pris|hver dag|alltid lågt pris|lågt pris varje dag|varje dag/i;
 
-/** Permanent low prices (e.g. Lidl's "Fast lav pris") rather than this week's deals. */
+/** Permanent low prices (e.g. Lidl's "Fast lav pris" or "Alltid lågt pris") rather than this week's deals. */
 export function isEverydayPrice(offer: Pick<Offer, 'description'>): boolean {
   return EVERYDAY_PRICE.test(offer.description ?? '');
 }

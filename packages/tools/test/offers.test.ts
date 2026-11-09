@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { S3Client } from '@aws-sdk/client-s3';
+import { NoSuchKey, type S3Client } from '@aws-sdk/client-s3';
 import type { Offer, OfferTags } from '@dinner/shared';
 import { OfferCatalog } from '../src/offers.js';
 
@@ -38,10 +38,18 @@ const offers = [
   offer('4', 'Hakket oksekød', tags('meat', 'minced beef'), { validTo: '2026-11-02T22:59:59.000Z' }),
 ];
 
+const swedish = [offer('se-1', 'Kycklingbröstfilé', tags('poultry', 'chicken breast fillet'), { chain: 'ica-nara', currency: 'SEK' })];
+const snapshots: Record<string, Offer[]> = {
+  'snapshots/dk/2026-W45/offers.json': offers,
+  'snapshots/se-57.71_11.97/2026-W45/offers.json': swedish,
+  // Danish snapshots written before markets existed.
+  'snapshots/2026-W46/offers.json': offers.slice(0, 1),
+};
 const s3 = {
   send: async (command: { input: { Key: string } }) => {
-    if (command.input.Key !== 'snapshots/2026-W45/offers.json') throw new Error(`unexpected key ${command.input.Key}`);
-    return { Body: { transformToString: async () => JSON.stringify({ offers }) } };
+    const found = snapshots[command.input.Key];
+    if (!found) throw new NoSuchKey({ message: 'missing', $metadata: {} });
+    return { Body: { transformToString: async () => JSON.stringify({ offers: found }) } };
   },
 } as unknown as S3Client;
 
@@ -56,23 +64,42 @@ describe('OfferCatalog', () => {
   });
 
   it('finds offers by English ingredient or Danish heading', async () => {
-    expect((await catalog.search({ week: 'next', query: 'salmon' })).offers.map((o) => o.id)).toEqual(['2']);
-    expect((await catalog.search({ week: 'next', query: 'kylling' })).offers.map((o) => o.id)).toEqual(['1']);
+    expect((await catalog.search({ week: 'next', query: 'salmon' }, 'dk')).offers.map((o) => o.id)).toEqual(['2']);
+    expect((await catalog.search({ week: 'next', query: 'kylling' }, 'dk')).offers.map((o) => o.id)).toEqual(['1']);
   });
 
   it('falls back to fuzzy matching for typos', async () => {
-    expect((await catalog.search({ week: 'next', query: 'samlon' })).offers.map((o) => o.id)).toEqual(['2']);
+    expect((await catalog.search({ week: 'next', query: 'samlon' }, 'dk')).offers.map((o) => o.id)).toEqual(['2']);
   });
 
   it('hides non-dinner items by default and flags everyday prices', async () => {
-    const result = await catalog.search({ week: 'next' });
+    const result = await catalog.search({ week: 'next' }, 'dk');
     expect(result.offers.map((o) => o.id)).toEqual(['1', '2', '4']);
     expect(result.offers.find((o) => o.id === '2')?.everydayPrice).toBe(true);
   });
 
+  it('keeps markets apart and reads legacy Danish snapshots', async () => {
+    expect((await catalog.search({ week: 'next', query: 'chicken' }, 'se-57.71_11.97')).offers.map((o) => o.id)).toEqual(['se-1']);
+    expect((await catalog.search({ week: '2026-W46' }, 'dk')).offers.map((o) => o.id)).toEqual(['1']);
+  });
+
+  it('says when a snapshot is missing and picks it up as soon as it exists', async () => {
+    const missing = await catalog.search({ week: '2026-W47' }, 'se-57.71_11.97');
+    expect(missing).toMatchObject({ totalMatches: 0, offers: [], message: expect.stringContaining('No offers have been fetched') });
+
+    snapshots['snapshots/se-57.71_11.97/2026-W47/offers.json'] = swedish;
+    try {
+      const found = await catalog.search({ week: '2026-W47' }, 'se-57.71_11.97');
+      expect(found.offers.map((o) => o.id)).toEqual(['se-1']);
+      expect(found).not.toHaveProperty('message');
+    } finally {
+      delete snapshots['snapshots/se-57.71_11.97/2026-W47/offers.json'];
+    }
+  });
+
   it('filters by category, chain and validity date', async () => {
-    expect((await catalog.search({ week: 'next', categories: ['fish', 'meat'] })).offers.map((o) => o.id)).toEqual(['2', '4']);
-    expect((await catalog.search({ week: 'next', chains: ['lidl'] })).offers.map((o) => o.id)).toEqual(['2']);
-    expect((await catalog.search({ week: 'next', validOn: '2026-11-05' })).offers.map((o) => o.id)).toEqual(['1', '2']);
+    expect((await catalog.search({ week: 'next', categories: ['fish', 'meat'] }, 'dk')).offers.map((o) => o.id)).toEqual(['2', '4']);
+    expect((await catalog.search({ week: 'next', chains: ['lidl'] }, 'dk')).offers.map((o) => o.id)).toEqual(['2']);
+    expect((await catalog.search({ week: 'next', validOn: '2026-11-05' }, 'dk')).offers.map((o) => o.id)).toEqual(['1', '2']);
   });
 });

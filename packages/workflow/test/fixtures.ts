@@ -28,7 +28,7 @@ export const dinner = (date: string, dish: string, ingredients: Dinner['ingredie
   cookingMinutes: 30,
   ingredients,
   steps: ['Cook it.', 'Serve it.'],
-  estimatedCostDkk: 80,
+  estimatedCost: 80,
   servings: 2,
   nutrition: { kcal: 650, protein: 40, fat: 20, saturatedFat: 6, carbs: 60, sugars: 5, fiber: 7, salt: 1.2, unmatched: [] },
 });

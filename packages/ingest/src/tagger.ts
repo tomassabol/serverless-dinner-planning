@@ -6,7 +6,7 @@ const BATCH_SIZE = 40;
 const CONCURRENCY = 4;
 const DESCRIPTION_LIMIT = 140;
 
-const SYSTEM_PROMPT = `You classify Danish supermarket offers for a dinner-planning app.
+const SYSTEM_PROMPT = `You classify Danish and Swedish supermarket offers for a dinner-planning app.
 For every offer, call record_tags once with one entry per offer id:
 - category: one of ${OFFER_CATEGORIES.join(', ')}.
   meat = beef, pork, lamb, minced meat, sausages, bacon, cold cuts. poultry = chicken, turkey, duck.
@@ -14,7 +14,7 @@ For every offer, call record_tags once with one entry per offer id:
   pantry = oils, spices, sauces, canned goods, stock, flour, sugar. ready_meal = pizza, lasagne and other ready-to-heat meals.
   snacks = sweets, chips, ice cream, cakes, biscuits. beverages = all drinks including alcohol and coffee.
   non_food = anything not eaten (cleaning, hygiene, diapers, pet food, household, clothing, electronics).
-- canonicalIngredient: short lowercase English name of the main ingredient (e.g. "pork tenderloin", "minced beef", "salmon fillet", "broccoli"). If the offer says "X eller Y", name the first food option. Empty string for non_food.
+- canonicalIngredient: short lowercase English name of the main ingredient (e.g. "pork tenderloin", "minced beef", "salmon fillet", "broccoli"). If the offer says "X eller Y" (Danish and Swedish for "X or Y"), name the first food option. Empty string for non_food.
 - dinnerRelevant: true if a home cook could use it as part of a dinner (proteins, vegetables, carbs, dairy like cheese or cream, cooking pantry items). False for snacks, beverages, breakfast cereals, baby food and non_food.
 Classify every id you are given. Do not skip any.`;
 

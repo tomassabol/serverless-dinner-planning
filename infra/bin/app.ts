@@ -66,6 +66,7 @@ const api = new ApiStack(app, `${config.prefix}-api`, {
   userPool: auth.userPool,
   chatRuntime: agents.chatRuntime,
   memory: agents.memory,
+  ingestFn: ingest.fn,
   devOrigins: ['http://localhost:5173'],
 });
 

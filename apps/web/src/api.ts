@@ -1,9 +1,32 @@
-import type { StoredPlan } from '@dinner/shared';
+import type { Country, Location, StoredPlan } from '@dinner/shared';
 import { idToken } from './auth';
 
 export type Rating = 'up' | 'down';
 export type PlanDinner = StoredPlan['dinners'][number] & { rating: Rating | null };
 export type Plan = Omit<StoredPlan, 'dinners' | 'usage' | 'executionId'> & { dinners: PlanDinner[] };
+
+export interface ChainOption {
+  id: string;
+  name: string;
+}
+
+/** Where the household shops (GET/PUT /household). */
+export interface Household {
+  householdId: string;
+  country: Country;
+  location: Location | null;
+  currency: 'DKK' | 'SEK';
+  preferredChains: string[];
+  chains: Record<Country, ChainOption[]>;
+  /** False until a Swedish household has chosen its location. */
+  ready: boolean;
+}
+
+export interface HouseholdUpdate {
+  country: Country;
+  location: Location | null;
+  preferredChains: string[];
+}
 
 export interface Conversation {
   id: string;
@@ -44,6 +67,15 @@ export async function getPlan(week: 'current' | 'next'): Promise<Plan | null> {
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Loading the plan failed with ${response.status}`);
   return response.json();
+}
+
+export const getHousehold = () => json<Household>('/household');
+
+export async function saveHousehold(update: HouseholdUpdate): Promise<Household> {
+  const response = await request('/household', { method: 'PUT', body: JSON.stringify(update) });
+  const body = (await response.json().catch(() => ({}))) as Household & { message?: string };
+  if (!response.ok) throw new Error(body.message ?? `Saving failed with ${response.status}`);
+  return body;
 }
 
 export const rateMeal = (date: string, rating: Rating) =>

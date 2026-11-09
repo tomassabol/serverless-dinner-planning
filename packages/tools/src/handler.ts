@@ -5,7 +5,16 @@ import { BatchGetCommand, DynamoDBDocumentClient, GetCommand, UpdateCommand } fr
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { PlanRepo } from '@dinner/workflow/plans';
-import { HouseholdIdSchema, OfferSchema, householdKeys, resolveWeekKey, type Offer } from '@dinner/shared';
+import {
+  CHAINS,
+  HouseholdIdSchema,
+  OfferSchema,
+  countryInfo,
+  householdKeys,
+  marketFor,
+  resolveWeekKey,
+  type Offer,
+} from '@dinner/shared';
 import type { Context } from 'aws-lambda';
 import { z } from 'zod';
 import { TOOLS, type ToolName } from './definitions.js';
@@ -13,7 +22,7 @@ import { MealHistoryRepo } from './history.js';
 import { NutritionDb, type FridaFood } from './nutrition.js';
 import { OfferCatalog } from './offers.js';
 import { perServing, removeDinner, replaceDinner } from './plan-edits.js';
-import { PreferencesRepo } from './preferences.js';
+import { PreferencesRepo, describePreferences } from './preferences.js';
 import fridaFoods from '../data/frida-foods.json' with { type: 'json' };
 
 const env = z
@@ -59,7 +68,8 @@ export const handler = async (event: Record<string, unknown>, context: Context) 
     return await run(toolName, householdId, input);
   } catch (error) {
     const message = error instanceof z.ZodError ? z.prettifyError(error) : error instanceof Error ? error.message : String(error);
-    logger.warn('Tool call failed', { toolName, message });
+    // Not `message`: Powertools reserves that key for the log message itself.
+    logger.warn('Tool call failed', { toolName, householdId: (event as { householdId?: unknown }).householdId, error: message });
     return { error: message };
   }
 };
@@ -72,20 +82,28 @@ function toolNameFrom(context: Context): string {
 
 async function run(toolName: ToolName, householdId: string, input: unknown) {
   switch (toolName) {
-    case 'search_offers':
-      return catalog.search(TOOLS.search_offers.input.parse(input));
+    case 'search_offers': {
+      const market = marketFor((await preferences.get(householdId)).market);
+      if (!market) throw new Error('The household has not set its location in Sweden yet, so there are no nearby offers. Ask them to set it in the app settings.');
+      return catalog.search(TOOLS.search_offers.input.parse(input), market.key);
+    }
     case 'get_offer': {
       const { offerId } = TOOLS.get_offer.input.parse(input);
-      const { Item } = await ddb.send(
-        new GetCommand({ TableName: env.TABLE_NAME, Key: { pk: `OFFER#${offerId}`, sk: 'OFFER' } }),
-      );
-      if (!Item) throw new Error(`No offer with id ${offerId}`);
-      return OfferSchema.parse(Item);
+      const [{ Item }, prefs] = await Promise.all([
+        ddb.send(new GetCommand({ TableName: env.TABLE_NAME, Key: { pk: `OFFER#${offerId}`, sk: 'OFFER' } })),
+        preferences.get(householdId),
+      ]);
+      const offer = Item ? OfferSchema.parse(Item) : null;
+      // Offers are shared across households; one from another country is treated as unknown.
+      if (!offer || CHAINS.find((c) => c.id === offer.chain)?.country !== prefs.market.country) {
+        throw new Error(`No offer with id ${offerId} for a household in ${countryInfo(prefs.market.country).name}`);
+      }
+      return offer;
     }
     case 'nutrition_lookup':
       return nutrition.lookup(TOOLS.nutrition_lookup.input.parse(input).items);
     case 'get_preferences':
-      return preferences.get(householdId);
+      return describePreferences(await preferences.get(householdId));
     case 'update_preferences':
       return preferences.update(householdId, TOOLS.update_preferences.input.parse(input));
     case 'get_meal_history': {
@@ -106,7 +124,7 @@ async function run(toolName: ToolName, householdId: string, input: unknown) {
       const draft = { ...dinner, date };
       const prefs = await preferences.get(householdId);
       const lookup = nutrition.lookup(draft.ingredients.map((i) => ({ ingredient: i.name, grams: i.grams })));
-      const offers = await loadOffers([...plan.dinners.filter((d) => d.date !== date), draft]);
+      const offers = await loadOffers([...plan.dinners.filter((d) => d.date !== date), draft], prefs.market.country);
       const result = replaceDinner(plan, draft, {
         preferences: prefs,
         offers,
@@ -170,7 +188,8 @@ async function requirePlan(householdId: string, week: string | undefined) {
   return plan;
 }
 
-async function loadOffers(dinners: { ingredients: { offerId: string | null }[] }[]): Promise<Map<string, Offer>> {
+/** Offers referenced by the dinners; with `country`, offers from another country's chains are left out (reported as unknown). */
+async function loadOffers(dinners: { ingredients: { offerId: string | null }[] }[], country?: string): Promise<Map<string, Offer>> {
   const ids = [...new Set(dinners.flatMap((d) => d.ingredients.map((i) => i.offerId)).filter((id): id is string => !!id))];
   const offers = new Map<string, Offer>();
   for (let i = 0; i < ids.length; i += 100) {
@@ -178,6 +197,7 @@ async function loadOffers(dinners: { ingredients: { offerId: string | null }[] }
     const response = await ddb.send(new BatchGetCommand({ RequestItems: { [env.TABLE_NAME]: { Keys: keys } } }));
     for (const item of response.Responses?.[env.TABLE_NAME] ?? []) {
       const offer = OfferSchema.parse(item);
+      if (country && CHAINS.find((c) => c.id === offer.chain)?.country !== country) continue;
       offers.set(offer.id, offer);
     }
   }

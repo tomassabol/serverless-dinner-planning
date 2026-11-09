@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CurrencySchema } from './countries.js';
 
 export const PlannedIngredientSchema = z.object({
   name: z.string().describe('Plain English ingredient name, e.g. "chicken breast", "rice", "olive oil".'),
@@ -11,12 +12,12 @@ export const DinnerDraftSchema = z.object({
   date: z.iso.date().describe('Date of the dinner, YYYY-MM-DD.'),
   dish: z.string().describe('Short dish name, e.g. "Lemon-garlic salmon with roast potatoes".'),
   description: z.string().describe('One or two appetising sentences.'),
-  cuisine: z.string().describe('e.g. "Danish", "Italian", "Thai".'),
+  cuisine: z.string().describe('e.g. "Danish", "Swedish", "Italian", "Thai".'),
   mainProtein: z.string().describe('Main protein in plain English, e.g. "salmon", "chicken", "lentils".'),
   cookingMinutes: z.number().int().positive(),
   ingredients: z.array(PlannedIngredientSchema).min(2),
   steps: z.array(z.string()).min(2).describe('Short recipe steps.'),
-  estimatedCostDkk: z.number().nonnegative().describe('Estimated cost of all ingredients in DKK.'),
+  estimatedCost: z.number().nonnegative().describe("Estimated cost of all ingredients in the household's currency (DKK or SEK)."),
 });
 export type DinnerDraft = z.infer<typeof DinnerDraftSchema>;
 
@@ -66,6 +67,8 @@ export type Dinner = z.infer<typeof DinnerSchema>;
 export const MealPlanSchema = z.object({
   householdId: z.string(),
   week: z.string(),
+  /** Plans made before Sweden was supported are Danish. */
+  currency: CurrencySchema.default('DKK'),
   status: z.enum(['approved', 'best_effort']),
   dinners: z.array(DinnerSchema),
   notes: z.string(),
@@ -117,3 +120,13 @@ export const StoredPlanSchema = MealPlanSchema.extend({
   updatedAt: z.iso.datetime(),
 });
 export type StoredPlan = z.infer<typeof StoredPlanSchema>;
+
+/** Renames fields stored before Sweden was supported (`estimatedCostDkk` became `estimatedCost`). */
+export function migratePlan<T extends Record<string, unknown> | undefined>(item: T): T {
+  const dinners = item?.dinners as Record<string, unknown>[] | undefined;
+  if (!item || !dinners?.some((d) => 'estimatedCostDkk' in d)) return item;
+  return {
+    ...item,
+    dinners: dinners.map(({ estimatedCostDkk, ...d }) => ('estimatedCost' in d ? d : { ...d, estimatedCost: estimatedCostDkk })),
+  };
+}

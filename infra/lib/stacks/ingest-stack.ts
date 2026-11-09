@@ -30,7 +30,7 @@ export class IngestStack extends Stack {
       config,
       serviceName: 'ingest',
       entry: 'packages/ingest/src/handler.ts',
-      description: 'Fetches weekly offers from Tjek, tags them with Claude and writes week snapshots',
+      description: 'Fetches weekly offers (Tjek, Hemköp) per market, tags them with Claude and writes week snapshots',
       memorySize: 1024,
       timeout: Duration.minutes(10),
       retryAttempts: 1,
@@ -49,7 +49,7 @@ export class IngestStack extends Stack {
 
     new scheduler.Schedule(this, 'DailySchedule', {
       scheduleName: `${config.prefix}-ingest-daily`,
-      description: 'Daily offer ingest at 05:00 Danish time',
+      description: 'Daily offer ingest for every market at 05:00 Danish/Swedish time',
       schedule: scheduler.ScheduleExpression.cron({
         minute: '0',
         hour: '5',

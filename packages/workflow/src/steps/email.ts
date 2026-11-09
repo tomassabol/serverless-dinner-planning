@@ -1,9 +1,9 @@
 /** Workflow step: emails the stored plan to every verified member of the household. */
-import { CognitoIdentityProviderClient, paginateListUsers } from '@aws-sdk/client-cognito-identity-provider';
+import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import { HOUSEHOLD_ATTRIBUTE } from '@dinner/shared';
 import { ddb, env, logger, tracer } from '../clients.js';
 import { renderPlanEmail } from '../email/render.js';
+import { listHouseholdMembers } from '../households.js';
 import { PlanRepo } from '../plans.js';
 
 const { TABLE_NAME, USER_POOL_ID, SENDER_EMAIL } = env('TABLE_NAME', 'USER_POOL_ID', 'SENDER_EMAIL');
@@ -35,16 +35,7 @@ export async function sendPlanEmail(householdId: string, week: string) {
   return recipients.length;
 }
 
-/** Cognito cannot filter on custom attributes, so the (tiny) pool is listed and filtered here. */
 async function householdEmails(householdId: string): Promise<string[]> {
-  const emails: string[] = [];
-  for await (const page of paginateListUsers({ client: cognito }, { UserPoolId: USER_POOL_ID })) {
-    for (const user of page.Users ?? []) {
-      const attrs = Object.fromEntries((user.Attributes ?? []).map((a) => [a.Name, a.Value]));
-      if (user.Enabled && attrs[HOUSEHOLD_ATTRIBUTE] === householdId && attrs.email && attrs.email_verified === 'true') {
-        emails.push(attrs.email);
-      }
-    }
-  }
-  return emails;
+  const members = await listHouseholdMembers(cognito, USER_POOL_ID);
+  return members.filter((m) => m.householdId === householdId && m.emailVerified).map((m) => m.email);
 }

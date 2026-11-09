@@ -802,6 +802,15 @@ summary:focus-visible {
     margin-left: 0;
   }
 
+  .tabs button {
+    padding: 6px 12px;
+  }
+
+  .topbar .link {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
   .dinners {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -815,4 +824,93 @@ summary:focus-visible {
   .dots {
     animation: none;
   }
+}
+
+/* Settings */
+.settings-view {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.settings {
+  display: grid;
+  gap: 20px;
+}
+
+.settings h1 {
+  font-family: var(--serif);
+  font-size: 28px;
+}
+
+.settings fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.settings legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+.settings .week-switch {
+  justify-self: start;
+}
+
+.location-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.location-row select {
+  flex: 1 1 200px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.secondary {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+}
+
+.chain-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  column-gap: 16px;
+}
+
+.chain-list label {
+  grid-template-columns: auto 1fr;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.setup-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  background: var(--warm-soft);
+}
+
+.setup-banner p {
+  margin: 0;
 }

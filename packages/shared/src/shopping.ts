@@ -1,4 +1,4 @@
-import { CHAINS } from './chains.js';
+import { chainName } from './chains.js';
 import type { Offer } from './offer.js';
 import type { Dinner, ShoppingList } from './plan.js';
 
@@ -21,7 +21,7 @@ export function buildShoppingList(dinners: Dinner[], offers: Map<string, Offer>)
 
       const store = stores.get(offer.chain) ?? {
         chain: offer.chain,
-        chainName: CHAINS.find((c) => c.id === offer.chain)?.name ?? offer.chain,
+        chainName: chainName(offer.chain),
         items: [],
         subtotal: 0,
       };

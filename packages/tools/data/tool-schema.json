@@ -1,13 +1,13 @@
 [
   {
     "name": "search_offers",
-    "description": "Search this week's or next week's supermarket offers (Netto, Lidl, REMA 1000, føtex, Bilka, 365discount, SuperBrugsen, Brugsen, Kvickly, SPAR, MENY). Returns price, price per kg/l/piece, validity dates and an ingredient tag. \"everydayPrice\" marks permanent low prices rather than weekly deals.",
+    "description": "Search this week's or next week's offers from the supermarkets near the household: national Danish chains (Netto, Lidl, REMA 1000, føtex, Bilka, Coop and more) for a household in Denmark, or the nearest ICA, Hemköp, Willys, Lidl, Coop and City Gross stores for a household in Sweden. Returns price (in the offer's currency), price per kg/l/piece, validity dates and an ingredient tag. \"everydayPrice\" marks permanent low prices rather than weekly deals.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "query": {
           "type": "string",
-          "description": "Ingredient or product to look for, in English or Danish (e.g. \"salmon\", \"kyllingebryst\"). Omit to browse."
+          "description": "Ingredient or product to look for, in English or the local language (e.g. \"salmon\", Danish \"kyllingebryst\", Swedish \"kycklingfilé\"). Omit to browse."
         },
         "categories": {
           "type": "array",
@@ -19,10 +19,10 @@
         },
         "chains": {
           "type": "array",
-          "description": "Only return offers from these chains.",
+          "description": "Only return offers from these chains (ids from get_preferences' availableChains).",
           "items": {
             "type": "string",
-            "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris."
+            "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris, ica-maxi, ica-kvantum, ica-supermarket, ica-nara, hemkop, willys, lidl-se, coop-se, stora-coop, city-gross."
           }
         },
         "week": {
@@ -31,7 +31,7 @@
         },
         "validOn": {
           "type": "string",
-          "description": "Only offers valid on this date (YYYY-MM-DD, Danish time)."
+          "description": "Only offers valid on this date (YYYY-MM-DD, local time)."
         },
         "dinnerRelevantOnly": {
           "type": "boolean",
@@ -62,7 +62,7 @@
   },
   {
     "name": "nutrition_lookup",
-    "description": "Compute nutrition for a recipe from the Danish Frida food database. Pass every ingredient with its raw weight; returns per-ingredient matches and totals (kcal, protein, fat, saturated fat, carbs, sugars, fiber, salt). Check \"unmatched\" and low-confidence matches.",
+    "description": "Compute nutrition for a recipe from the Frida food composition database (DTU, Denmark; also fine for Swedish food). Pass every ingredient with its raw weight; returns per-ingredient matches and totals (kcal, protein, fat, saturated fat, carbs, sugars, fiber, salt). Check \"unmatched\" and low-confidence matches.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -95,7 +95,7 @@
   },
   {
     "name": "get_preferences",
-    "description": "Get the household's members with allergies, dislikes, likes and diets, plus planning settings (dinners per week, servings, cooking time, preferred chains, budget).",
+    "description": "Get the household's members with allergies, dislikes, likes and diets, planning settings (dinners per week, servings, cooking time, preferred chains, weekly budget), its country and currency, and the supermarket chains available to it.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -168,10 +168,10 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris."
+                "description": "One of: netto, lidl, rema1000, foetex, bilka, coop365, superbrugsen, brugsen, kvickly, spar, meny, lovbjerg, abclavpris, ica-maxi, ica-kvantum, ica-supermarket, ica-nara, hemkop, willys, lidl-se, coop-se, stora-coop, city-gross."
               }
             },
-            "weeklyBudgetDkk": {
+            "weeklyBudget": {
               "type": "number",
               "description": "May be null."
             }
@@ -247,7 +247,7 @@
             },
             "cuisine": {
               "type": "string",
-              "description": "e.g. \"Danish\", \"Italian\", \"Thai\"."
+              "description": "e.g. \"Danish\", \"Swedish\", \"Italian\", \"Thai\"."
             },
             "mainProtein": {
               "type": "string",
@@ -288,9 +288,9 @@
                 "type": "string"
               }
             },
-            "estimatedCostDkk": {
+            "estimatedCost": {
               "type": "number",
-              "description": "Estimated cost of all ingredients in DKK."
+              "description": "Estimated cost of all ingredients in the household's currency (DKK or SEK)."
             }
           },
           "required": [
@@ -301,7 +301,7 @@
             "cookingMinutes",
             "ingredients",
             "steps",
-            "estimatedCostDkk"
+            "estimatedCost"
           ]
         }
       },

@@ -2,7 +2,9 @@ import { BedrockAgentCoreClient } from '@aws-sdk/client-bedrock-agentcore';
 import { Agent, MemoryManager, type McpClient } from '@strands-agents/sdk';
 import { AnthropicModel } from '@strands-agents/sdk/models/anthropic';
 import { createAgentCoreMemoryStores } from 'bedrock-agentcore/memory/strands';
+import type { Preferences } from '@dinner/shared';
 import { anthropicApiKey } from '../anthropic.js';
+import { callTool } from '../gateway.js';
 import { chatSystemPrompt } from './prompts.js';
 import { loadTurns, toMessages } from './history.js';
 
@@ -42,7 +44,9 @@ export async function* runChat(
   memoryClient = new BedrockAgentCoreClient({ region: config.region }),
 ): AsyncGenerator<ChatEvent> {
   const ids = { memoryId: config.memoryId, actorId: request.householdId, sessionId: request.conversationId };
-  const history = toMessages(await loadTurns(memoryClient, ids));
+  // The country and location shape the system prompt (currency, stores), so they are read up front.
+  const [turns, preferences] = await Promise.all([loadTurns(memoryClient, ids), callTool<Preferences>(gateway, 'get_preferences')]);
+  const history = toMessages(turns);
 
   const memory = new MemoryManager({
     stores: createAgentCoreMemoryStores({
@@ -62,7 +66,7 @@ export async function* runChat(
   const agent = new Agent({
     name: 'chat',
     model: new AnthropicModel({ modelId: config.modelId, apiKey: await anthropicApiKey(), maxTokens: 8_000, cacheConfig: { strategy: 'auto' } }),
-    systemPrompt: chatSystemPrompt({ userName: request.userName, now: new Date() }),
+    systemPrompt: chatSystemPrompt({ userName: request.userName, now: new Date(), market: preferences.market }),
     messages: history,
     tools: [gateway],
     plugins: [memory],

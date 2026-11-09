@@ -4,7 +4,8 @@
  * chat stream. Vite drops this module from production builds because it is only imported under
  * `import.meta.env.DEV`.
  */
-import type { ChatEvent } from '../api';
+import { chainsFor } from '@dinner/shared';
+import type { ChatEvent, Household, HouseholdUpdate } from '../api';
 
 const encoder = new TextEncoder();
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,6 +34,20 @@ function sseResponse(events: ChatEvent[]): Response {
   return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
 }
 
+const chainOptions = (country: 'DK' | 'SE') => chainsFor(country).map((c) => ({ id: c.id, name: c.name }));
+
+/** `/?preview=se` starts as a Swedish household that has not chosen its location yet. */
+let household: Household = {
+  householdId: 'home',
+  country: new URLSearchParams(location.search).get('preview') === 'se' ? 'SE' : 'DK',
+  location: null,
+  currency: 'DKK',
+  preferredChains: [],
+  chains: { DK: chainOptions('DK'), SE: chainOptions('SE') },
+  ready: true,
+};
+household = { ...household, currency: household.country === 'SE' ? 'SEK' : 'DKK', ready: household.country === 'DK' };
+
 export function installPreview() {
   const realFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
@@ -49,6 +64,12 @@ export function installPreview() {
       return isJson ? response : new Response('{}', { status: 404 });
     }
     if (route.startsWith('/meals/')) return Response.json({ ok: true });
+    if (route === '/household' && init?.method === 'PUT') {
+      const update = JSON.parse(String(init.body)) as HouseholdUpdate;
+      household = { ...household, ...update, currency: update.country === 'SE' ? 'SEK' : 'DKK', ready: update.country === 'DK' || !!update.location };
+      return Response.json(household);
+    }
+    if (route === '/household') return Response.json(household);
     if (route === '/conversations') {
       return Response.json({
         conversations: [

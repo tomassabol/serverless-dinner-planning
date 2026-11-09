@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Plan } from '../api';
-import { dayMonth, dkk, shortDay } from './format';
+import { dayMonth, kr, shortDay } from './format';
 
 /** Shopping list grouped by store; ticked items are remembered per week in this browser. */
 export function ShoppingList({ plan }: { plan: Plan }) {
@@ -34,12 +34,12 @@ export function ShoppingList({ plan }: { plan: Plan }) {
     <section className="panel shopping" aria-labelledby="shopping-title">
       <div className="panel-header">
         <h2 id="shopping-title">Shopping list</h2>
-        <span className="muted">{dkk(offerTotal)} on offers</span>
+        <span className="muted">{kr(offerTotal)} on offers</span>
       </div>
       {stores.map((store) => (
         <div key={store.chain} className="store">
           <h3>
-            {store.chainName} <span className="muted">{dkk(store.subtotal)}</span>
+            {store.chainName} <span className="muted">{kr(store.subtotal)}</span>
           </h3>
           <ul className="checklist">
             {store.items.map((item) => (
@@ -53,8 +53,8 @@ export function ShoppingList({ plan }: { plan: Plan }) {
                     </small>
                   </span>
                   <span className="price">
-                    {dkk(item.price)}
-                    {item.prePrice ? <s className="muted">{dkk(item.prePrice)}</s> : null}
+                    {kr(item.price)}
+                    {item.prePrice ? <s className="muted">{kr(item.prePrice)}</s> : null}
                   </span>
                 </label>
               </li>

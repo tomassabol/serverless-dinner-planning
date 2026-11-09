@@ -8,7 +8,8 @@
     "test": "vitest run",
     "build:frida": "tsx scripts/build-frida.ts",
     "gen:schema": "tsx scripts/gen-schema.ts",
-    "call-gateway": "tsx scripts/call-gateway.ts"
+    "call-gateway": "tsx scripts/call-gateway.ts",
+    "set-market": "tsx scripts/set-market.ts"
   },
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.36.0",
@@ -31,5 +32,8 @@
     "exceljs": "^4.4.0",
     "tsx": "^4.23.15",
     "vitest": "^5.0.5"
+  },
+  "exports": {
+    "./preferences": "./src/preferences.ts"
   }
 }

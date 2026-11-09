@@ -10,11 +10,11 @@ export const SearchOffersInput = z.object({
   query: z
     .string()
     .optional()
-    .describe('Ingredient or product to look for, in English or Danish (e.g. "salmon", "kyllingebryst"). Omit to browse.'),
+    .describe('Ingredient or product to look for, in English or the local language (e.g. "salmon", Danish "kyllingebryst", Swedish "kycklingfilé"). Omit to browse.'),
   categories: z.array(OfferCategorySchema).optional().describe('Only return offers in these categories.'),
-  chains: z.array(ChainIdSchema).optional().describe('Only return offers from these chains.'),
+  chains: z.array(ChainIdSchema).optional().describe("Only return offers from these chains (ids from get_preferences' availableChains)."),
   week: WeekSchema.optional(),
-  validOn: z.iso.date().optional().describe('Only offers valid on this date (YYYY-MM-DD, Danish time).'),
+  validOn: z.iso.date().optional().describe('Only offers valid on this date (YYYY-MM-DD, local time).'),
   dinnerRelevantOnly: z.boolean().optional().describe('Skip snacks, drinks and other non-dinner items. Defaults to true.'),
   limit: z.number().int().min(1).max(50).optional().describe('Maximum number of offers to return. Defaults to 20.'),
 });
@@ -85,7 +85,7 @@ export const ReplanWeekInput = z.object({
 export const TOOLS = {
   search_offers: {
     description:
-      'Search this week\'s or next week\'s supermarket offers (Netto, Lidl, REMA 1000, føtex, Bilka, 365discount, SuperBrugsen, Brugsen, Kvickly, SPAR, MENY). Returns price, price per kg/l/piece, validity dates and an ingredient tag. "everydayPrice" marks permanent low prices rather than weekly deals.',
+      'Search this week\'s or next week\'s offers from the supermarkets near the household: national Danish chains (Netto, Lidl, REMA 1000, føtex, Bilka, Coop and more) for a household in Denmark, or the nearest ICA, Hemköp, Willys, Lidl, Coop and City Gross stores for a household in Sweden. Returns price (in the offer\'s currency), price per kg/l/piece, validity dates and an ingredient tag. "everydayPrice" marks permanent low prices rather than weekly deals.',
     input: SearchOffersInput,
   },
   get_offer: {
@@ -94,12 +94,12 @@ export const TOOLS = {
   },
   nutrition_lookup: {
     description:
-      'Compute nutrition for a recipe from the Danish Frida food database. Pass every ingredient with its raw weight; returns per-ingredient matches and totals (kcal, protein, fat, saturated fat, carbs, sugars, fiber, salt). Check "unmatched" and low-confidence matches.',
+      'Compute nutrition for a recipe from the Frida food composition database (DTU, Denmark; also fine for Swedish food). Pass every ingredient with its raw weight; returns per-ingredient matches and totals (kcal, protein, fat, saturated fat, carbs, sugars, fiber, salt). Check "unmatched" and low-confidence matches.',
     input: NutritionLookupInput,
   },
   get_preferences: {
     description:
-      "Get the household's members with allergies, dislikes, likes and diets, plus planning settings (dinners per week, servings, cooking time, preferred chains, budget).",
+      "Get the household's members with allergies, dislikes, likes and diets, planning settings (dinners per week, servings, cooking time, preferred chains, weekly budget), its country and currency, and the supermarket chains available to it.",
     input: GetPreferencesInput,
   },
   update_preferences: {

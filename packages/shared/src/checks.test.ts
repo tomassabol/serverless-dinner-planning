@@ -17,7 +17,7 @@ const dinner = (date: string, dish: string, mainProtein: string, extra: Partial<
     { name: 'potatoes', grams: 600, offerId: null },
   ],
   steps: ['Cook.', 'Eat.'],
-  estimatedCostDkk: 80,
+  estimatedCost: 80,
   ...extra,
 });
 

@@ -16,11 +16,12 @@ import {
   type Offer,
   type Preferences,
   checkPlan,
+  countryInfo,
   hasBlocking,
 } from '@dinner/shared';
 import { anthropicApiKey } from '../anthropic.js';
 import { callTool } from '../gateway.js';
-import { JUDGE_SYSTEM_PROMPT, PLANNER_SYSTEM_PROMPT, judgeTask, plannerTask, revisionFeedback, type WeekContext } from './prompts.js';
+import { judgeSystemPrompt, judgeTask, plannerSystemPrompt, plannerTask, revisionFeedback, type WeekContext } from './prompts.js';
 
 export interface WeeklyConfig {
   region: string;
@@ -64,10 +65,15 @@ export async function runWeekly(
   const weekKey = resolveWeekKey(request.week ?? 'next', now);
   const dates = isoWeekDates(weekKey);
 
-  const [preferences, { meals }] = await Promise.all([
+  const [preferences, { meals }, available] = await Promise.all([
     callTool<Preferences>(gateway, 'get_preferences'),
     callTool<{ meals: MealRecord[] }>(gateway, 'get_meal_history', { weeks: 8 }),
+    callTool<{ totalMatches: number; message?: string }>(gateway, 'search_offers', { week: weekKey, limit: 1 }),
   ]);
+  // A plan without offers is not worth the tokens; fail so the workflow alarm fires instead.
+  if (available.totalMatches === 0) {
+    throw new Error(`No offers for ${request.householdId} in ${weekKey}: ${available.message ?? 'the offer snapshot is empty'}`);
+  }
   // A re-plan must not treat the week's own earlier version as "recent meals".
   const history = meals.filter((m) => m.date < dates[0]!);
   const ctx: WeekContext = { weekKey, dates, preferences, history };
@@ -77,7 +83,7 @@ export async function runWeekly(
   const planner = new Agent({
     name: 'planner',
     model: new AnthropicModel({ modelId: config.plannerModelId, apiKey, maxTokens: 16_000, cacheConfig: { strategy: 'auto' } }),
-    systemPrompt: PLANNER_SYSTEM_PROMPT,
+    systemPrompt: plannerSystemPrompt(preferences.market.country),
     tools: [gateway],
     printer: false,
     traceAttributes,
@@ -122,7 +128,7 @@ export async function runWeekly(
       const judge = new Agent({
         name: 'judge',
         model: new AnthropicModel({ modelId: config.judgeModelId, apiKey, maxTokens: 4_000 }),
-        systemPrompt: JUDGE_SYSTEM_PROMPT,
+        systemPrompt: judgeSystemPrompt(preferences.market.country),
         printer: false,
         traceAttributes: { ...traceAttributes, 'judge.round': round },
       });
@@ -136,13 +142,13 @@ export async function runWeekly(
     if (!hasBlocking(checks) && (!best || verdict.score > best.verdict.score)) best = current;
 
     if (!hasBlocking(checks) && verdict.approved && verdict.score >= config.passScore) {
-      return toMealPlan(request.householdId, weekKey, 'approved', current, rounds, config, usage, preferences.settings.servings);
+      return toMealPlan(request.householdId, weekKey, 'approved', current, rounds, config, usage, preferences);
     }
     prompt = revisionFeedback(checks, hasBlocking(checks) ? null : verdict);
   }
 
   if (!best) throw new Error(`No plan without blocking issues after ${rounds} rounds`);
-  return toMealPlan(request.householdId, weekKey, 'best_effort', best, rounds, config, usage, preferences.settings.servings);
+  return toMealPlan(request.householdId, weekKey, 'best_effort', best, rounds, config, usage, preferences);
 }
 
 /** Per-serving nutrition for each dinner, computed from Frida by the nutrition_lookup tool. */
@@ -185,14 +191,16 @@ function toMealPlan(
   rounds: number,
   config: WeeklyConfig,
   usage: MealPlan['usage'],
-  servings: number,
+  preferences: Preferences,
 ): MealPlan {
+  const { servings } = preferences.settings;
   const dinners: Dinner[] = round.draft.dinners
     .map((d) => ({ ...d, servings, nutrition: round.nutrition.get(d.date)! }))
     .sort((a, b) => a.date.localeCompare(b.date));
   return {
     householdId,
     week,
+    currency: countryInfo(preferences.market.country).currency,
     status,
     dinners,
     notes: round.draft.notes,

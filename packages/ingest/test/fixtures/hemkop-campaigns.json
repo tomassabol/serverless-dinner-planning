@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Olivolja Classico",
+    "manufacturer": "Garant",
+    "displayVolume": "500ml",
+    "price": "68,95 kr",
+    "priceUnit": "kr/st",
+    "image": {
+      "url": "https://assets.axfood.se/image/upload/f_auto,t_200/07340083474194_C1L1_s02"
+    },
+    "potentialPromotions": [
+      {
+        "code": "2500324896",
+        "price": 39.95,
+        "qualifyingCount": 1,
+        "rewardLabel": "39,95",
+        "comparePrice": "79,90/l",
+        "startDate": "09/11-2026",
+        "endDate": "15/11-2026",
+        "validUntil": 1794783599000,
+        "description": "Extra virgin",
+        "textLabel": "Klubbpris",
+        "campaignType": "LOYALTY",
+        "promotionType": "MixMatchPricePromotion"
+      }
+    ]
+  },
+  {
+    "name": "Bacon",
+    "manufacturer": "Scan",
+    "displayVolume": "140g",
+    "price": "16,56 kr",
+    "priceUnit": "kr/st",
+    "image": {
+      "url": "https://assets.axfood.se/image/upload/f_auto,t_200/07300208345006_C1N1_s02"
+    },
+    "potentialPromotions": [
+      {
+        "code": "2500324746",
+        "price": 28,
+        "qualifyingCount": 2,
+        "rewardLabel": "28,00",
+        "comparePrice": "100,00/kg",
+        "startDate": "09/11-2026",
+        "endDate": "15/11-2026",
+        "validUntil": 1794783599000,
+        "description": "flera sorter, gäller ej miniskivat",
+        "textLabel": "Välj och blanda",
+        "campaignType": "LOYALTY",
+        "promotionType": "MixMatchPricePromotion"
+      }
+    ]
+  },
+  {
+    "name": "Svensk kycklingbröstfilé",
+    "manufacturer": "Garant",
+    "displayVolume": "ca 850g",
+    "price": "125,00 kr",
+    "priceUnit": "kr/kg",
+    "image": {
+      "url": "https://assets.axfood.se/image/upload/f_auto,t_200/02359634700007_C1L1_s05"
+    },
+    "potentialPromotions": [
+      {
+        "code": "2500330686",
+        "price": null,
+        "qualifyingCount": null,
+        "rewardLabel": "99 kr/kg",
+        "comparePrice": "99,00/kg",
+        "startDate": "09/11-2026",
+        "endDate": "15/11-2026",
+        "validUntil": 1794783599000,
+        "description": "Sverige",
+        "textLabel": "Klubbpris",
+        "campaignType": "LOYALTY",
+        "promotionType": "SubtotalOrderPromotion"
+      }
+    ]
+  },
+  {
+    "name": "Sötpotatis",
+    "manufacturer": null,
+    "displayVolume": "ca 250g",
+    "price": "28,95 kr",
+    "priceUnit": "kr/kg",
+    "image": {
+      "url": "https://assets.axfood.se/image/upload/f_auto,t_200/07311042002543_C1N0_s01"
+    },
+    "potentialPromotions": [
+      {
+        "code": "2500334119",
+        "price": null,
+        "qualifyingCount": null,
+        "rewardLabel": "10 kr/kg",
+        "comparePrice": "10,00/kg",
+        "startDate": "09/11-2026",
+        "endDate": "15/11-2026",
+        "validUntil": 1794783599000,
+        "description": "klass 1",
+        "textLabel": "Klubbpris",
+        "campaignType": "LOYALTY",
+        "promotionType": "SubtotalOrderPromotion"
+      }
+    ]
+  }
+]

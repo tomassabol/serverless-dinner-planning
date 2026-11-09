@@ -202,6 +202,29 @@ CDK stacks: `Data`, `Auth`, `Ingest`, `Tools+Gateway`, `Agents+Memory`, `Workflo
 - **Dev preview** (`/?preview`, Vite dev server only) renders the signed-in UI from real plan JSON with a simulated chat stream, so the UI can be checked without credentials.
 - **Not yet verified:** a real Cognito sign-in and an authenticated chat through CloudFront → API Gateway streaming. The first real login is that test.
 
+### Sweden and multiple households (2026-11-09)
+- **Sources, checked live:** Tjek also runs Sweden (eReklamblad). `GET /v2/dealers?country_id=SE` ignores the country, but catalogs searched by location (`r_lat`, `r_lng`, `r_radius`, `order_by=distance`) return the nearest store's flyer per dealer.
+
+  | Chain | Source | Id | Scope |
+  |---|---|---|---|
+  | Maxi ICA Stormarknad | Tjek | `ca802A` | per store |
+  | ICA Kvantum | Tjek | `9cb4wA` | per store |
+  | ICA Supermarket | Tjek | `1d1dvA` | per store |
+  | ICA Nära | Tjek | `20d4lA` | per store |
+  | Willys | Tjek | `c371GA` | per store |
+  | Lidl (SE) | Tjek | `03a7b3` | per store listing, same national flyer |
+  | Coop | Tjek | `63eeoD` | per store |
+  | Stora Coop | Tjek | `6c28SD` | per store |
+  | City Gross | Tjek | `bfe5hA` | one national flyer (`all_stores`), not tied to store locations |
+  | Hemköp | Axfood web API | `/axfood/rest/store`, `/search/campaigns/offline?q=<storeId>&type=PERSONAL_GENERAL` | per store |
+
+  Hemköp is not on Tjek. Axfood's site serves per-store campaigns as JSON (unofficial, no contract, same ToS caveat as Tjek). Multi-buy deals ("2 för 28 kr") are stored per piece; weighed goods ("99 kr/kg") are priced from the approximate pack weight; club prices (free Hemköp Klubb) are flagged in the description. A Göteborg dry run gave about 900 offers across the ten chains.
+- **Offer markets:** Denmark is one national market (`dk`). A Swedish household's market is its location rounded to two decimals (`se-57.71_11.97`, about 1 km), so neighbours share fetches; the nearest store of each chain within 15 km is used. Snapshots moved to `snapshots/<market>/<week>/offers.json` (the tools still read the old Danish path as a fallback). Offer ids stay global, so a national flyer seen by several markets is stored and tagged once.
+- **Household market** lives in the preferences item (`market: { country, location }`), changed only through `PUT /household` from the Settings tab, never by the agents. The preferences item carries `gsi1pk = HOUSEHOLDS`, so ingest can list Swedish locations. Saving a new market starts an async ingest for that household. `get_offer` and `replace_dinner` treat offers from another country's chains as unknown.
+- **Tenancy:** households are the distinct `custom:householdId` values of enabled Cognito users. The Sunday schedule now invokes `workflow-dispatch`, which refreshes all markets once and starts one durable execution per household (`weekly-<week>-<household>`, so a schedule retry cannot plan a household twice). A workflow started for one household refreshes only that household's market.
+- **Currency and prompts:** plans store `currency` (DKK or SEK); `estimatedCostDkk` and `weeklyBudgetDkk` became `estimatedCost` and `weeklyBudget`, with read-time migration of stored items. Planner, judge and chat prompts name the household's country, stores and currency. Stockholm and Copenhagen share a time zone, so week boundaries and schedules are unchanged.
+- **Not covered yet:** SES is still in sandbox mode, so every new member's address must be verified (`householdEmails`). Nutrition still comes from Frida (Danish), which covers Swedish staples well enough.
+
 ### Open decisions
 1. Tjek ToS: ask for permission, or accept the personal-use risk?
 2. Number of dinners per week, leftovers, and weekday cooking-time limit.

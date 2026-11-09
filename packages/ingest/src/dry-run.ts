@@ -1,28 +1,35 @@
 /**
  * Fetches and normalizes offers locally without writing to AWS.
- * Usage: pnpm --filter @dinner/ingest dry-run [--tag] [chainId ...]
- * --tag classifies a 40-offer sample per chain with Claude (ANTHROPIC_API_KEY from the repo's .env).
+ * Usage: pnpm --filter @dinner/ingest dry-run [--tag] [--near=<lat>,<lng>] [chainId ...]
+ * Without --near it fetches the Danish chains; with --near (e.g. --near=57.71,11.97 for Göteborg) the
+ * Swedish chains' nearest stores. --tag classifies a 40-offer sample per chain with Claude (ANTHROPIC_API_KEY from the repo's .env).
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { CHAINS, DEFAULT_CHAINS, type ChainId, type Offer } from '@dinner/shared';
+import { DANISH_MARKET, chainsFor, marketFor, type ChainId, type Offer } from '@dinner/shared';
+import { AxfoodOfferSource } from './sources/axfood.js';
 import { TjekOfferSource } from './sources/tjek.js';
 import { OfferTagger } from './tagger.js';
 
 const args = process.argv.slice(2);
 const tag = args.includes('--tag');
+const near = args.find((a) => a.startsWith('--near='))?.slice(7).split(',').map(Number);
 const requested = args.filter((a) => !a.startsWith('--')) as ChainId[];
-const chains = requested.length ? CHAINS.filter((c) => requested.includes(c.id)) : DEFAULT_CHAINS;
-const source = new TjekOfferSource();
+const market = near ? marketFor({ country: 'SE', location: { lat: near[0]!, lng: near[1]!, label: 'dry run' } })! : DANISH_MARKET;
+const chains = chainsFor(market.country).filter((c) => requested.length === 0 || requested.includes(c.id));
+const sources = { tjek: new TjekOfferSource(), axfood: new AxfoodOfferSource() };
 const tagger = new OfferTagger(new Anthropic(), process.env.TAG_MODEL_ID ?? 'claude-haiku-4-5', (error) =>
   console.error('Tagging failed', error),
 );
 
+console.log(`Market ${market.key}`);
 for (const chain of chains) {
-  const raw = await source.fetchRaw(chain);
+  const source = sources[chain.source];
+  const raw = await source.fetchRaw(chain, market);
   const valid = raw.map((item) => source.normalize(chain, item)).filter((o): o is Offer => o !== null);
   const withUnitPrice = valid.filter((o) => o.unitPrice).length;
+  const where = valid.find((o) => o.catalogId)?.description?.split('. ').at(-1) ?? '';
   console.log(
-    `${chain.name.padEnd(14)} fetched=${String(raw.length).padStart(4)} valid=${String(valid.length).padStart(4)} unitPrice=${withUnitPrice}`,
+    `${chain.name.padEnd(22)} fetched=${String(raw.length).padStart(4)} valid=${String(valid.length).padStart(4)} unitPrice=${withUnitPrice}${chain.source === 'axfood' ? ` (${where})` : ''}`,
   );
 
   if (tag) {
